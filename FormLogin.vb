@@ -23,17 +23,18 @@ Public Class FormLogin
         If conn Is Nothing Then Return
 
         Try
-            Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE Correo = @correo AND Contraseña = @pass"
+            ' Obtener el perfil (Tipo) del usuario si las credenciales son correctas
+            Dim query As String = "SELECT `Tipo` FROM usuarios WHERE Correo = @correo AND Contraseña = @pass LIMIT 1"
 
             Using cmd As New MySqlCommand(query, conn)
-
                 cmd.Parameters.AddWithValue("@correo", correo)
                 cmd.Parameters.AddWithValue("@pass", contraseña)
 
-                Dim resultado As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+                Dim objTipo = cmd.ExecuteScalar()
 
-                If resultado > 0 Then
-                    Dim menuPrincipal As New FormMenuPrincipal()
+                If objTipo IsNot Nothing AndAlso Not Convert.IsDBNull(objTipo) Then
+                    Dim tipo As String = objTipo.ToString()
+                    Dim menuPrincipal As New FormMenuPrincipal(tipo, correo)
                     menuPrincipal.Show()
                     Me.Hide()
                 Else
@@ -63,7 +64,7 @@ Public Class FormLogin
             txt.Text = ""
             txt.ForeColor = Color.Black
             If txt.Name = "txtContraseña" Then
-                txt.PasswordChar = "*"
+                txt.PasswordChar = CChar("*")
             End If
         End If
     End Sub
