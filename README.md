@@ -37,4 +37,4 @@ Antes de ejecutar el proyecto, asegúrate de tener instalado:
 
 1. Clona este repositorio:  
    ```bash
-   git clone https://github.com/gegc1379/proyectofinalPNET
+   git clone https://github.com/gegc1379/proyectofinalPNET.git
