@@ -176,8 +176,13 @@ Partial Class FormMenuPrincipal
         End Select
     End Sub
 
+
+    ' *******************************
+    ' *** PANEL REPUESTOS  *********
+    ' *******************************
+
     Private Sub MostrarPanelRepuestos()
-        ' Variables para el módulo de repuestos
+
         Dim dt As New DataTable()
         Dim modoEdicion As Boolean = False
         Dim idRepuestoSeleccionado As Integer = -1
@@ -196,10 +201,12 @@ Partial Class FormMenuPrincipal
     }
         header.Controls.Add(title)
 
-        ' Contenedor principal (izquierda: formulario; derecha: tabla)
+
         Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
 
-        ' ========== PANEL IZQUIERDO: FORMULARIO ==========
+
+
+        ' ** FORMULARIO Panel Repuestos
         Dim leftPanel As New Panel With {
         .Width = 380,
         .Dock = DockStyle.Left,
@@ -220,7 +227,7 @@ Partial Class FormMenuPrincipal
         leftPanel.Controls.Add(lblFormTitle)
         yPos += 45
 
-        ' Campo ID (solo lectura)
+
         Dim lblId As New Label With {
         .Text = "ID:",
         .Location = New Point(20, yPos),
@@ -239,7 +246,7 @@ Partial Class FormMenuPrincipal
         leftPanel.Controls.AddRange({lblId, txtId})
         yPos += 60
 
-        ' Campo Nombre
+        '  Nombre
         Dim lblNombre As New Label With {
         .Text = "Nombre del Repuesto: *",
         .Location = New Point(20, yPos),
@@ -256,7 +263,7 @@ Partial Class FormMenuPrincipal
         leftPanel.Controls.AddRange({lblNombre, txtNombre})
         yPos += 60
 
-        ' Campo Cantidad
+        '  Cantidad
         Dim lblCantidad As New Label With {
         .Text = "Cantidad en Stock: *",
         .Location = New Point(20, yPos),
@@ -272,7 +279,7 @@ Partial Class FormMenuPrincipal
         leftPanel.Controls.AddRange({lblCantidad, txtCantidad})
         yPos += 60
 
-        ' Campo Precio
+        '  Precio
         Dim lblPrecio As New Label With {
         .Text = "Precio Unitario: *",
         .Location = New Point(20, yPos),
@@ -288,7 +295,7 @@ Partial Class FormMenuPrincipal
         leftPanel.Controls.AddRange({lblPrecio, txtPrecio})
         yPos += 60
 
-        ' Campo Proveedor
+        '  Proveedor
         Dim lblProveedor As New Label With {
         .Text = "Proveedor: *",
         .Location = New Point(20, yPos),
@@ -370,17 +377,23 @@ Partial Class FormMenuPrincipal
         panelBotones.Controls.AddRange({btnNuevo, btnGuardar, btnEditar, btnEliminar})
         leftPanel.Controls.Add(panelBotones)
 
-        ' ========== PANEL DERECHO: TABLA Y BÚSQUEDA ==========
+
+
+        ' ***************************************
+        ' *** P.REPUESTOS, TABLA Y BÚSQUEDA ***
+        ' ***************************************
+
+
         Dim rightPanel As New Panel With {
         .Dock = DockStyle.Fill,
         .Padding = New Padding(20),
         .BackColor = Color.WhiteSmoke
     }
 
-        ' Barra de búsqueda
+        ' Barra de búsqueda 
         Dim panelBusqueda As New Panel With {
         .Dock = DockStyle.Top,
-        .Height = 70,
+        .Height = 80,
         .BackColor = Color.Transparent
     }
 
@@ -443,9 +456,13 @@ Partial Class FormMenuPrincipal
 
         PanelContenido.Controls.Add(panelPrincipal)
 
-        ' ========== FUNCIONES Y EVENTOS ==========
 
-        ' Cargar repuestos desde la BD
+
+        ' ********************************************
+        ' *** PANEL Repuestos Funciones y EVentos ****
+        ' ********************************************
+
+        ' Cargar Los Repuestos de la base de datos 
         Dim CargarRepuestos As Action = Sub()
                                             Try
                                                 Dim conn As MySqlConnection = ModuloConexion.GetConexion()
@@ -474,7 +491,8 @@ Partial Class FormMenuPrincipal
                                             End Try
                                         End Sub
 
-        ' Limpiar formulario
+
+        ' Funcion para limpiar el formulario 
         Dim LimpiarFormulario As Action = Sub()
                                               txtId.Text = "Auto-generado"
                                               txtNombre.Clear()
@@ -492,7 +510,7 @@ Partial Class FormMenuPrincipal
                                               txtProveedor.Enabled = False
                                           End Sub
 
-        ' Validar campos
+        ' Validar campos del formulario 
         Dim ValidarCampos As Func(Of Boolean) = Function()
                                                     If String.IsNullOrWhiteSpace(txtNombre.Text) Then
                                                         MessageBox.Show("El nombre del repuesto es obligatorio.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
@@ -552,7 +570,7 @@ Partial Class FormMenuPrincipal
                                                          End Try
                                                      End Function
 
-        ' Evento: Botón Nuevo
+        ' Boron :Nuevo
         AddHandler btnNuevo.Click, Sub()
                                        LimpiarFormulario()
                                        txtNombre.Enabled = True
@@ -563,7 +581,7 @@ Partial Class FormMenuPrincipal
                                        txtNombre.Focus()
                                    End Sub
 
-        ' Evento: Botón Guardar
+        ' Botón Guardar
         AddHandler btnGuardar.Click, Sub()
                                          If Not ValidarCampos() Then Return
 
@@ -606,7 +624,7 @@ Partial Class FormMenuPrincipal
                                          End Try
                                      End Sub
 
-        ' Evento: Botón Editar
+        '  Botón Editar
         AddHandler btnEditar.Click, Sub()
                                         modoEdicion = True
                                         txtNombre.Enabled = True
@@ -619,7 +637,7 @@ Partial Class FormMenuPrincipal
                                         txtNombre.Focus()
                                     End Sub
 
-        ' Evento: Botón Eliminar
+        '  Botón Eliminar
         AddHandler btnEliminar.Click, Sub()
                                           If MessageBox.Show("¿Está seguro de eliminar este repuesto?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.No Then
                                               Return
@@ -681,7 +699,17 @@ Partial Class FormMenuPrincipal
         CargarRepuestos()
     End Sub
 
-        Private Sub MostrarPanelUsuarios()
+    '************* FIN PANEL DE REPUESTOS ****************
+
+
+
+
+
+    ' *******************************
+    ' ****  PANEL USUARIOS  *********
+    ' *******************************
+
+    Private Sub MostrarPanelUsuarios()
         ' Variables para el módulo de usuarios
         Dim dt As New DataTable()
         Dim modoEdicion As Boolean = False
