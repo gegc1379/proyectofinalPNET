@@ -167,6 +167,9 @@ Partial Class FormMenuPrincipal
             Case "Repuestos"
                 MostrarPanelRepuestos()
 
+            Case "Usuarios"
+                MostrarPanelUsuarios()
+
             Case Else
                 Dim lbl As New Label With {.Text = $"Has seleccionado: {opcionSeleccionada}", .Font = New Font("Segoe UI", 16, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True, .Location = New Point(50, 50)}
                 PanelContenido.Controls.Add(lbl)
@@ -676,6 +679,551 @@ Partial Class FormMenuPrincipal
 
         ' Cargar datos iniciales
         CargarRepuestos()
+    End Sub
+
+        Private Sub MostrarPanelUsuarios()
+        ' Variables para el módulo de usuarios
+        Dim dt As New DataTable()
+        Dim modoEdicion As Boolean = False
+        Dim rutUsuarioSeleccionado As String = String.Empty
+
+        ' Panel principal
+        Dim panelPrincipal As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' Header
+        Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
+        Dim title As New Label With {
+            .Text = "👤 Gestión de Usuarios",
+            .Font = New Font("Segoe UI", 18, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True,
+            .Location = New Point(20, 15)
+        }
+        header.Controls.Add(title)
+
+        ' Contenedor principal (izquierda: formulario; derecha: tabla)
+        Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' ========== PANEL IZQUIERDO: FORMULARIO ==========
+        Dim leftPanel As New Panel With {
+            .Width = 380,
+            .Dock = DockStyle.Left,
+            .Padding = New Padding(20),
+            .BackColor = Color.White
+        }
+
+        Dim yPos As Integer = 20
+
+        ' Título del formulario
+        Dim lblFormTitle As New Label With {
+            .Text = "Datos del Usuario",
+            .Font = New Font("Segoe UI", 14, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(0, 122, 204),
+            .Location = New Point(20, yPos),
+            .AutoSize = True
+        }
+        leftPanel.Controls.Add(lblFormTitle)
+        yPos += 45
+
+        ' Campo RUT
+        Dim lblRut As New Label With {
+            .Text = "RUT: *",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtRut As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .MaxLength = 11,
+            .Name = "txtRutUsuario"
+        }
+        leftPanel.Controls.AddRange({lblRut, txtRut})
+        yPos += 60
+
+        ' Campo Correo
+        Dim lblCorreo As New Label With {
+            .Text = "Correo Electrónico: *",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtCorreo As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .Name = "txtCorreoUsuario"
+        }
+        leftPanel.Controls.AddRange({lblCorreo, txtCorreo})
+        yPos += 60
+
+        ' Campo Contraseña
+        Dim lblContraseña As New Label With {
+            .Text = "Contraseña: *",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtContraseña As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .Name = "txtContraseñaUsuario"
+        }
+        leftPanel.Controls.AddRange({lblContraseña, txtContraseña})
+        yPos += 60
+
+        ' Campo Tipo (ComboBox)
+        Dim lblTipo As New Label With {
+            .Text = "Tipo de Usuario: *",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim cboTipo As New ComboBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .DropDownStyle = ComboBoxStyle.DropDownList,
+            .Name = "cboTipoUsuario"
+        }
+        cboTipo.Items.AddRange({"Administrador", "Vendedor", "Mecanico", "Aseguradora", "Analista", "Gerente"})
+        leftPanel.Controls.AddRange({lblTipo, cboTipo})
+        yPos += 80
+
+        ' Panel de botones
+        Dim panelBotones As New Panel With {
+            .Location = New Point(20, yPos),
+            .Width = 340,
+            .Height = 100,
+            .BackColor = Color.Transparent
+        }
+
+        Dim btnNuevo As New Button With {
+            .Text = "➕ Nuevo",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(0, 0),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(0, 122, 204),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Cursor = Cursors.Hand
+        }
+        btnNuevo.FlatAppearance.BorderSize = 0
+
+        Dim btnGuardar As New Button With {
+            .Text = "💾 Guardar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(180, 0),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(40, 167, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
+        btnGuardar.FlatAppearance.BorderSize = 0
+
+        Dim btnEditar As New Button With {
+            .Text = "✏️ Editar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(0, 48),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(255, 193, 7),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
+        btnEditar.FlatAppearance.BorderSize = 0
+
+        Dim btnEliminar As New Button With {
+            .Text = "🗑️ Eliminar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(180, 48),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(220, 53, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
+        btnEliminar.FlatAppearance.BorderSize = 0
+
+        panelBotones.Controls.AddRange({btnNuevo, btnGuardar, btnEditar, btnEliminar})
+        leftPanel.Controls.Add(panelBotones)
+
+        ' ========== PANEL DERECHO: TABLA Y BÚSQUEDA ==========
+        Dim rightPanel As New Panel With {
+            .Dock = DockStyle.Fill,
+            .Padding = New Padding(20),
+            .BackColor = Color.WhiteSmoke
+        }
+
+        ' Barra de búsqueda
+        Dim panelBusqueda As New Panel With {
+            .Dock = DockStyle.Top,
+            .Height = 70,
+            .BackColor = Color.Transparent
+        }
+
+        Dim lblBuscar As New Label With {
+            .Text = "🔍 Buscar por RUT o Correo:",
+            .Location = New Point(0, 5),
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .AutoSize = True
+        }
+
+        Dim txtBuscar As New TextBox With {
+            .Location = New Point(0, 30),
+            .Width = 350,
+            .Font = New Font("Segoe UI", 11),
+            .Name = "txtBuscarUsuario"
+        }
+
+        panelBusqueda.Controls.AddRange({lblBuscar, txtBuscar})
+        rightPanel.Controls.Add(panelBusqueda)
+
+        ' DataGridView
+        Dim dgvUsuarios As New DataGridView With {
+            .Dock = DockStyle.Fill,
+            .BackgroundColor = Color.White,
+            .BorderStyle = BorderStyle.None,
+            .AllowUserToAddRows = False,
+            .AllowUserToDeleteRows = False,
+            .ReadOnly = True,
+            .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            .MultiSelect = False,
+            .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            .RowHeadersVisible = False,
+            .EnableHeadersVisualStyles = False,
+            .Name = "dgvUsuarios"
+        }
+
+        ' Estilo del header
+        dgvUsuarios.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
+        dgvUsuarios.ColumnHeadersDefaultCellStyle.ForeColor = Color.White
+        dgvUsuarios.ColumnHeadersDefaultCellStyle.Font = New Font("Segoe UI", 10, FontStyle.Bold)
+        dgvUsuarios.ColumnHeadersDefaultCellStyle.Padding = New Padding(5)
+        dgvUsuarios.ColumnHeadersHeight = 40
+
+        ' Estilo de filas
+        dgvUsuarios.DefaultCellStyle.Font = New Font("Segoe UI", 9)
+        dgvUsuarios.DefaultCellStyle.SelectionBackColor = Color.FromArgb(100, 180, 255)
+        dgvUsuarios.DefaultCellStyle.SelectionForeColor = Color.White
+        dgvUsuarios.RowTemplate.Height = 35
+        dgvUsuarios.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245)
+
+        rightPanel.Controls.Add(dgvUsuarios)
+
+        ' Agregar paneles al contenedor principal
+        mainContainer.Controls.Add(rightPanel)
+        mainContainer.Controls.Add(leftPanel)
+
+        ' Agregar todo al panel principal
+        panelPrincipal.Controls.Add(mainContainer)
+        panelPrincipal.Controls.Add(header)
+
+        PanelContenido.Controls.Add(panelPrincipal)
+
+        ' ========== FUNCIONES Y EVENTOS ==========
+
+        ' Cargar usuarios desde la BD
+        Dim CargarUsuarios As Action = Sub()
+                                           Try
+                                               Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                               If conn Is Nothing Then Return
+
+                                               Dim query As String = "SELECT Rut, Correo, Contraseña, Tipo FROM usuarios ORDER BY Rut"
+                                               Dim da As New MySqlDataAdapter(query, conn)
+                                               dt = New DataTable()
+                                               da.Fill(dt)
+
+                                               dgvUsuarios.DataSource = dt
+                                               dgvUsuarios.Columns("Rut").HeaderText = "RUT"
+                                               dgvUsuarios.Columns("Correo").HeaderText = "Correo Electrónico"
+                                               dgvUsuarios.Columns("Contraseña").HeaderText = "Contraseña"
+                                               dgvUsuarios.Columns("Tipo").HeaderText = "Tipo"
+
+                                               dgvUsuarios.Columns("Rut").Width = 100
+                                               dgvUsuarios.Columns("Correo").AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+                                               dgvUsuarios.Columns("Contraseña").Width = 100
+                                               dgvUsuarios.Columns("Tipo").Width = 120
+
+                                           Catch ex As Exception
+                                               MessageBox.Show("Error al cargar usuarios: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                           Finally
+                                               ModuloConexion.Desconectar()
+                                           End Try
+                                       End Sub
+
+        ' Limpiar formulario
+        Dim LimpiarFormulario As Action = Sub()
+                                              txtRut.Clear()
+                                              txtCorreo.Clear()
+                                              txtContraseña.Clear()
+                                              cboTipo.SelectedIndex = -1
+                                              modoEdicion = False
+                                              rutUsuarioSeleccionado = String.Empty
+                                              btnGuardar.Enabled = False
+                                              btnEditar.Enabled = False
+                                              btnEliminar.Enabled = False
+                                              txtRut.Enabled = False
+                                              txtCorreo.Enabled = False
+                                              txtContraseña.Enabled = False
+                                              cboTipo.Enabled = False
+                                          End Sub
+
+        ' Validar campos
+        Dim ValidarCampos As Func(Of Boolean) = Function()
+                                                    ' Validar RUT
+                                                    If String.IsNullOrWhiteSpace(txtRut.Text) Then
+                                                        MessageBox.Show("El RUT es obligatorio.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        txtRut.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    If txtRut.Text.Trim().Length < 8 Or txtRut.Text.Trim().Length > 11 Then
+                                                        MessageBox.Show("El RUT debe tener entre 8 y 11 caracteres.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        txtRut.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    ' Validar Correo
+                                                    If String.IsNullOrWhiteSpace(txtCorreo.Text) Then
+                                                        MessageBox.Show("El correo electrónico es obligatorio.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        txtCorreo.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    If Not txtCorreo.Text.Contains("@") OrElse Not txtCorreo.Text.Contains(".") Then
+                                                        MessageBox.Show("Debe ingresar un correo electrónico válido.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        txtCorreo.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    ' Validar Contraseña
+                                                    If String.IsNullOrWhiteSpace(txtContraseña.Text) Then
+                                                        MessageBox.Show("La contraseña es obligatoria.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        txtContraseña.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    If txtContraseña.Text.Length < 6 Then
+                                                        MessageBox.Show("La contraseña debe tener al menos 6 caracteres.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        txtContraseña.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    ' Validar Tipo
+                                                    If cboTipo.SelectedIndex = -1 Then
+                                                        MessageBox.Show("Debe seleccionar un tipo de usuario.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                        cboTipo.Focus()
+                                                        Return False
+                                                    End If
+
+                                                    Return True
+                                                End Function
+
+        ' Verificar RUT duplicado
+        Dim VerificarDuplicadoRut As Func(Of Boolean) = Function()
+                                                             Try
+                                                                 Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                                 If conn Is Nothing Then Return True
+
+                                                                 Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE Rut = @rut"
+                                                                 If modoEdicion Then
+                                                                     query &= " AND Rut <> @rutOriginal"
+                                                                 End If
+
+                                                                 Using cmd As New MySqlCommand(query, conn)
+                                                                     cmd.Parameters.AddWithValue("@rut", txtRut.Text.Trim())
+                                                                     If modoEdicion Then
+                                                                         cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
+                                                                     End If
+
+                                                                     Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+                                                                     Return count > 0
+                                                                 End Using
+
+                                                             Catch ex As Exception
+                                                                 MessageBox.Show("Error al verificar RUT: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                                 Return True
+                                                             Finally
+                                                                 ModuloConexion.Desconectar()
+                                                             End Try
+                                                         End Function
+
+        ' Verificar Correo duplicado
+        Dim VerificarDuplicadoCorreo As Func(Of Boolean) = Function()
+                                                                Try
+                                                                    Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                                    If conn Is Nothing Then Return True
+
+                                                                    Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE LOWER(Correo) = LOWER(@correo)"
+                                                                    If modoEdicion Then
+                                                                        query &= " AND Rut <> @rutOriginal"
+                                                                    End If
+
+                                                                    Using cmd As New MySqlCommand(query, conn)
+                                                                        cmd.Parameters.AddWithValue("@correo", txtCorreo.Text.Trim())
+                                                                        If modoEdicion Then
+                                                                            cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
+                                                                        End If
+
+                                                                        Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+                                                                        Return count > 0
+                                                                    End Using
+
+                                                                Catch ex As Exception
+                                                                    MessageBox.Show("Error al verificar correo: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                                    Return True
+                                                                Finally
+                                                                    ModuloConexion.Desconectar()
+                                                                End Try
+                                                            End Function
+
+        ' Evento: Botón Nuevo
+        AddHandler btnNuevo.Click, Sub()
+                                       LimpiarFormulario()
+                                       txtRut.Enabled = True
+                                       txtCorreo.Enabled = True
+                                       txtContraseña.Enabled = True
+                                       cboTipo.Enabled = True
+                                       btnGuardar.Enabled = True
+                                       txtRut.Focus()
+                                   End Sub
+
+        ' Evento: Botón Guardar
+        AddHandler btnGuardar.Click, Sub()
+                                         If Not ValidarCampos() Then Return
+
+                                         If VerificarDuplicadoRut() Then
+                                             MessageBox.Show("Ya existe un usuario con ese RUT.", "RUT Duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                             Return
+                                         End If
+
+                                         If VerificarDuplicadoCorreo() Then
+                                             MessageBox.Show("Ya existe un usuario con ese correo electrónico.", "Correo Duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                             Return
+                                         End If
+
+                                         Try
+                                             Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                             If conn Is Nothing Then Return
+
+                                             Dim query As String
+                                             If modoEdicion Then
+                                                 query = "UPDATE usuarios SET Rut=@rut, Correo=@correo, Contraseña=@pass, Tipo=@tipo WHERE Rut=@rutOriginal"
+                                             Else
+                                                 query = "INSERT INTO usuarios (Rut, Correo, Contraseña, Tipo) VALUES (@rut, @correo, @pass, @tipo)"
+                                             End If
+
+                                             Using cmd As New MySqlCommand(query, conn)
+                                                 cmd.Parameters.AddWithValue("@rut", txtRut.Text.Trim())
+                                                 cmd.Parameters.AddWithValue("@correo", txtCorreo.Text.Trim())
+                                                 cmd.Parameters.AddWithValue("@pass", txtContraseña.Text.Trim())
+                                                 cmd.Parameters.AddWithValue("@tipo", cboTipo.SelectedItem.ToString())
+
+                                                 If modoEdicion Then
+                                                     cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
+                                                 End If
+
+                                                 cmd.ExecuteNonQuery()
+                                                 MessageBox.Show(If(modoEdicion, "Usuario actualizado correctamente.", "Usuario agregado correctamente."), "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                                                 CargarUsuarios()
+                                                 LimpiarFormulario()
+                                             End Using
+
+                                         Catch ex As Exception
+                                             MessageBox.Show("Error al guardar usuario: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                         Finally
+                                             ModuloConexion.Desconectar()
+                                         End Try
+                                     End Sub
+
+        ' Evento: Botón Editar
+        AddHandler btnEditar.Click, Sub()
+                                        modoEdicion = True
+                                        txtRut.Enabled = True
+                                        txtCorreo.Enabled = True
+                                        txtContraseña.Enabled = True
+                                        cboTipo.Enabled = True
+                                        btnGuardar.Enabled = True
+                                        btnEditar.Enabled = False
+                                        btnEliminar.Enabled = False
+                                        txtRut.Focus()
+                                    End Sub
+
+        ' Evento: Botón Eliminar
+        AddHandler btnEliminar.Click, Sub()
+                                          If MessageBox.Show("¿Está seguro de eliminar este usuario?", "Confirmar Eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.No Then
+                                              Return
+                                          End If
+
+                                          Try
+                                              Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                              If conn Is Nothing Then Return
+
+                                              Dim query As String = "DELETE FROM usuarios WHERE Rut=@rut"
+                                              Using cmd As New MySqlCommand(query, conn)
+                                                  cmd.Parameters.AddWithValue("@rut", rutUsuarioSeleccionado)
+                                                  cmd.ExecuteNonQuery()
+                                                  MessageBox.Show("Usuario eliminado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                                                  CargarUsuarios()
+                                                  LimpiarFormulario()
+                                              End Using
+
+                                          Catch ex As Exception
+                                              MessageBox.Show("Error al eliminar usuario: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                          Finally
+                                              ModuloConexion.Desconectar()
+                                          End Try
+                                      End Sub
+
+        ' Evento: Selección en DataGridView
+        AddHandler dgvUsuarios.SelectionChanged, Sub()
+                                                     If dgvUsuarios.SelectedRows.Count > 0 Then
+                                                         Dim row As DataGridViewRow = dgvUsuarios.SelectedRows(0)
+                                                         rutUsuarioSeleccionado = row.Cells("Rut").Value.ToString()
+                                                         txtRut.Text = row.Cells("Rut").Value.ToString()
+                                                         txtCorreo.Text = row.Cells("Correo").Value.ToString()
+                                                         txtContraseña.Text = row.Cells("Contraseña").Value.ToString()
+                                                         cboTipo.SelectedItem = row.Cells("Tipo").Value.ToString()
+                                                         btnEditar.Enabled = True
+                                                         btnEliminar.Enabled = True
+                                                         btnGuardar.Enabled = False
+                                                         txtRut.Enabled = False
+                                                         txtCorreo.Enabled = False
+                                                         txtContraseña.Enabled = False
+                                                         cboTipo.Enabled = False
+                                                     End If
+                                                 End Sub
+
+        ' Evento: Búsqueda
+        AddHandler txtBuscar.TextChanged, Sub()
+                                              If dt Is Nothing OrElse dt.Rows.Count = 0 Then Return
+
+                                              Dim filtro As String = txtBuscar.Text.Trim()
+                                              If String.IsNullOrEmpty(filtro) Then
+                                                  dt.DefaultView.RowFilter = ""
+                                              Else
+                                                  filtro = filtro.Replace("'", "''")
+                                                  dt.DefaultView.RowFilter = String.Format("Rut LIKE '%{0}%' OR Correo LIKE '%{0}%'", filtro)
+                                              End If
+                                          End Sub
+
+        ' Cargar datos iniciales
+        CargarUsuarios()
     End Sub
 
     Private Sub MostrarDashboardInicial()
