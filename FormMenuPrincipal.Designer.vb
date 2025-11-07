@@ -27,15 +27,15 @@ Partial Class FormMenuPrincipal
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Me.PanelTop = New System.Windows.Forms.Panel()
+        Me.PictureBox1 = New System.Windows.Forms.PictureBox()
         Me.lblTituloTop = New System.Windows.Forms.Label()
         Me.lblUsuarioTop = New System.Windows.Forms.Label()
         Me.PanelLateral = New System.Windows.Forms.Panel()
         Me.PanelContenido = New System.Windows.Forms.Panel()
         Me.picLogoCentro = New System.Windows.Forms.PictureBox()
-        Me.PictureBox1 = New System.Windows.Forms.PictureBox()
         Me.PanelTop.SuspendLayout()
-        CType(Me.picLogoCentro, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).BeginInit()
+        CType(Me.picLogoCentro, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
         '
         'PanelTop
@@ -49,6 +49,16 @@ Partial Class FormMenuPrincipal
         Me.PanelTop.Name = "PanelTop"
         Me.PanelTop.Size = New System.Drawing.Size(1000, 54)
         Me.PanelTop.TabIndex = 0
+        '
+        'PictureBox1
+        '
+        Me.PictureBox1.Image = Global.proyectofinalPNET.My.Resources.Resources.Gem_Gen_ImgLogo
+        Me.PictureBox1.Location = New System.Drawing.Point(12, 7)
+        Me.PictureBox1.Name = "PictureBox1"
+        Me.PictureBox1.Size = New System.Drawing.Size(40, 40)
+        Me.PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
+        Me.PictureBox1.TabIndex = 6
+        Me.PictureBox1.TabStop = False
         '
         'lblTituloTop
         '
@@ -100,16 +110,6 @@ Partial Class FormMenuPrincipal
         Me.picLogoCentro.TabIndex = 0
         Me.picLogoCentro.TabStop = False
         '
-        'PictureBox1
-        '
-        Me.PictureBox1.Image = Global.proyectofinalPNET.My.Resources.Resources.Gem_Gen_ImgLogo
-        Me.PictureBox1.Location = New System.Drawing.Point(12, 7)
-        Me.PictureBox1.Name = "PictureBox1"
-        Me.PictureBox1.Size = New System.Drawing.Size(40, 40)
-        Me.PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
-        Me.PictureBox1.TabIndex = 6
-        Me.PictureBox1.TabStop = False
-        '
         'FormMenuPrincipal
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
@@ -122,8 +122,8 @@ Partial Class FormMenuPrincipal
         Me.Text = "FormMenuPrincipal"
         Me.PanelTop.ResumeLayout(False)
         Me.PanelTop.PerformLayout()
-        CType(Me.picLogoCentro, System.ComponentModel.ISupportInitialize).EndInit()
         CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).EndInit()
+        CType(Me.picLogoCentro, System.ComponentModel.ISupportInitialize).EndInit()
         Me.ResumeLayout(False)
 
     End Sub
