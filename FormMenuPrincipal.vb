@@ -732,7 +732,10 @@ Partial Class FormMenuPrincipal
         ' Contenedor principal (izquierda: formulario; derecha: tabla)
         Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
 
-        ' ========== PANEL IZQUIERDO: FORMULARIO ==========
+        ' ************************************
+        ' ****  PANEL USUARIOS: fORMULARIO ***
+        ' ************************************
+
         Dim leftPanel As New Panel With {
             .Width = 380,
             .Dock = DockStyle.Left,
@@ -890,7 +893,10 @@ Partial Class FormMenuPrincipal
         panelBotones.Controls.AddRange({btnNuevo, btnGuardar, btnEditar, btnEliminar})
         leftPanel.Controls.Add(panelBotones)
 
-        ' ========== PANEL DERECHO: TABLA Y BÚSQUEDA ==========
+        '*******************************************
+        '*** PANEL DE USUARIOS: TABLA Y BÚSQUEDA ***
+        '*******************************************
+
         Dim rightPanel As New Panel With {
             .Dock = DockStyle.Fill,
             .Padding = New Padding(20),
@@ -963,7 +969,9 @@ Partial Class FormMenuPrincipal
 
         PanelContenido.Controls.Add(panelPrincipal)
 
-        ' ========== FUNCIONES Y EVENTOS ==========
+        '**********************************************
+        '*** PANEL DE USUARIOS: FUNCIONES Y EVENTOS ***
+        '**********************************************
 
         ' Cargar usuarios desde la BD
         Dim CargarUsuarios As Action = Sub()
@@ -1064,61 +1072,61 @@ Partial Class FormMenuPrincipal
 
         ' Verificar RUT duplicado
         Dim VerificarDuplicadoRut As Func(Of Boolean) = Function()
-                                                             Try
-                                                                 Dim conn As MySqlConnection = ModuloConexion.GetConexion()
-                                                                 If conn Is Nothing Then Return True
+                                                            Try
+                                                                Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                                If conn Is Nothing Then Return True
 
-                                                                 Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE Rut = @rut"
-                                                                 If modoEdicion Then
-                                                                     query &= " AND Rut <> @rutOriginal"
-                                                                 End If
+                                                                Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE Rut = @rut"
+                                                                If modoEdicion Then
+                                                                    query &= " AND Rut <> @rutOriginal"
+                                                                End If
 
-                                                                 Using cmd As New MySqlCommand(query, conn)
-                                                                     cmd.Parameters.AddWithValue("@rut", txtRut.Text.Trim())
-                                                                     If modoEdicion Then
-                                                                         cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
-                                                                     End If
+                                                                Using cmd As New MySqlCommand(query, conn)
+                                                                    cmd.Parameters.AddWithValue("@rut", txtRut.Text.Trim())
+                                                                    If modoEdicion Then
+                                                                        cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
+                                                                    End If
 
-                                                                     Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
-                                                                     Return count > 0
-                                                                 End Using
+                                                                    Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+                                                                    Return count > 0
+                                                                End Using
 
-                                                             Catch ex As Exception
-                                                                 MessageBox.Show("Error al verificar RUT: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                                                                 Return True
-                                                             Finally
-                                                                 ModuloConexion.Desconectar()
-                                                             End Try
-                                                         End Function
+                                                            Catch ex As Exception
+                                                                MessageBox.Show("Error al verificar RUT: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                                Return True
+                                                            Finally
+                                                                ModuloConexion.Desconectar()
+                                                            End Try
+                                                        End Function
 
         ' Verificar Correo duplicado
         Dim VerificarDuplicadoCorreo As Func(Of Boolean) = Function()
-                                                                Try
-                                                                    Dim conn As MySqlConnection = ModuloConexion.GetConexion()
-                                                                    If conn Is Nothing Then Return True
+                                                               Try
+                                                                   Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                                   If conn Is Nothing Then Return True
 
-                                                                    Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE LOWER(Correo) = LOWER(@correo)"
-                                                                    If modoEdicion Then
-                                                                        query &= " AND Rut <> @rutOriginal"
-                                                                    End If
+                                                                   Dim query As String = "SELECT COUNT(*) FROM usuarios WHERE LOWER(Correo) = LOWER(@correo)"
+                                                                   If modoEdicion Then
+                                                                       query &= " AND Rut <> @rutOriginal"
+                                                                   End If
 
-                                                                    Using cmd As New MySqlCommand(query, conn)
-                                                                        cmd.Parameters.AddWithValue("@correo", txtCorreo.Text.Trim())
-                                                                        If modoEdicion Then
-                                                                            cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
-                                                                        End If
+                                                                   Using cmd As New MySqlCommand(query, conn)
+                                                                       cmd.Parameters.AddWithValue("@correo", txtCorreo.Text.Trim())
+                                                                       If modoEdicion Then
+                                                                           cmd.Parameters.AddWithValue("@rutOriginal", rutUsuarioSeleccionado)
+                                                                       End If
 
-                                                                        Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
-                                                                        Return count > 0
-                                                                    End Using
+                                                                       Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+                                                                       Return count > 0
+                                                                   End Using
 
-                                                                Catch ex As Exception
-                                                                    MessageBox.Show("Error al verificar correo: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                                                                    Return True
-                                                                Finally
-                                                                    ModuloConexion.Desconectar()
-                                                                End Try
-                                                            End Function
+                                                               Catch ex As Exception
+                                                                   MessageBox.Show("Error al verificar correo: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                                   Return True
+                                                               Finally
+                                                                   ModuloConexion.Desconectar()
+                                                               End Try
+                                                           End Function
 
         ' Evento: Botón Nuevo
         AddHandler btnNuevo.Click, Sub()
@@ -1253,6 +1261,11 @@ Partial Class FormMenuPrincipal
         ' Cargar datos iniciales
         CargarUsuarios()
     End Sub
+    '************* FIN PANEL DE USUARIOS ****************
+
+    '***********************
+    '*** PANEL DE INICIO ***
+    '***********************
 
     Private Sub MostrarDashboardInicial()
         ' Limpiar contenido previo
@@ -1384,7 +1397,7 @@ Partial Class FormMenuPrincipal
     End Sub
 
     Private Sub LoadDashboardData()
-        ' Intenta conectar y cargar datos reales; si falla, mantiene valores por defecto
+
         Try
             Dim conn As MySqlConnection = ModuloConexion.GetConexion()
             If conn Is Nothing Then Return
@@ -1498,5 +1511,9 @@ Partial Class FormMenuPrincipal
             Next
         Catch
         End Try
+    End Sub
+
+    Private Sub PanelContenido_Paint(sender As Object, e As PaintEventArgs) Handles PanelContenido.Paint
+
     End Sub
 End Class
