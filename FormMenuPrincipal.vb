@@ -32,6 +32,7 @@ Partial Class FormMenuPrincipal
         Tuple.Create("Usuarios", "Administrador", "👤"),
         Tuple.Create("Clientes", "Administrador;Vendedor;Mecanico;Aseguradora", "🧾"),
         Tuple.Create("Repuestos", "Administrador;Vendedor;Mecanico", "🔧"),
+        Tuple.Create("Ventas", "Administrador;Vendedor", "💰"),
         Tuple.Create("Siniestros", "Administrador;Aseguradora", "⚠️"),
         Tuple.Create("Servicios", "Administrador;Vendedor;Mecanico", "🛠️")
     }
@@ -169,6 +170,9 @@ Partial Class FormMenuPrincipal
 
             Case "Usuarios"
                 MostrarPanelUsuarios()
+
+            Case "Ventas"
+                MostrarPanelVentas()
 
             Case Else
                 Dim lbl As New Label With {.Text = $"Has seleccionado: {opcionSeleccionada}", .Font = New Font("Segoe UI", 16, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True, .Location = New Point(50, 50)}
@@ -702,7 +706,556 @@ Partial Class FormMenuPrincipal
     '************* FIN PANEL DE REPUESTOS ****************
 
 
+    ' *******************************
+    ' ****  PANEL VENTAS  ***********
+    ' *******************************
 
+    Private Sub MostrarPanelVentas()
+        ' Variables para el módulo de ventas
+        Dim dtRepuestos As New DataTable()
+        Dim repuestoSeleccionado As Integer = -1
+        Dim stockDisponible As Integer = 0
+
+        ' Panel principal
+        Dim panelPrincipal As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' Header
+        Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
+        Dim title As New Label With {
+            .Text = "💰 Registro de Ventas",
+            .Font = New Font("Segoe UI", 18, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True,
+            .Location = New Point(20, 15)
+        }
+        header.Controls.Add(title)
+
+        Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' ** PANEL IZQUIERDO: FORMULARIO DE VENTA **
+        Dim leftPanel As New Panel With {
+            .Width = 400,
+            .Dock = DockStyle.Left,
+            .Padding = New Padding(20),
+            .BackColor = Color.White,
+            .AutoScroll = True
+        }
+
+        Dim yPos As Integer = 20
+
+        ' Título del formulario
+        Dim lblFormTitle As New Label With {
+            .Text = "Datos de la Venta",
+            .Font = New Font("Segoe UI", 14, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(0, 122, 204),
+            .Location = New Point(20, yPos),
+            .AutoSize = True
+        }
+        leftPanel.Controls.Add(lblFormTitle)
+        yPos += 45
+
+        ' Búsqueda de Repuesto
+        Dim lblBuscarRepuesto As New Label With {
+            .Text = "Por favor busca y selecciona el repuesto que necesita:",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True,
+            .MaximumSize = New Size(340, 0)
+        }
+        Dim txtBuscarRepuesto As New TextBox With {
+            .Location = New Point(20, yPos + 40),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .Name = "txtBuscarRepuesto"
+        }
+        leftPanel.Controls.AddRange({lblBuscarRepuesto, txtBuscarRepuesto})
+        yPos += 80
+
+        ' ComboBox para seleccionar repuesto
+        Dim lblRepuesto As New Label With {
+            .Text = "Repuesto: *",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim cboRepuesto As New ComboBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .DropDownStyle = ComboBoxStyle.DropDownList,
+            .Name = "cboRepuesto"
+        }
+        leftPanel.Controls.AddRange({lblRepuesto, cboRepuesto})
+        yPos += 60
+
+        ' Nombre del Repuesto (solo lectura)
+        Dim lblNombre As New Label With {
+            .Text = "Nombre del Repuesto:",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtNombre As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .ReadOnly = True,
+            .BackColor = Color.FromArgb(240, 240, 240),
+            .Name = "txtNombreRepuesto"
+        }
+        leftPanel.Controls.AddRange({lblNombre, txtNombre})
+        yPos += 60
+
+        ' Stock Disponible (solo lectura)
+        Dim lblStock As New Label With {
+            .Text = "Unidades disponibles:",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtStock As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .ReadOnly = True,
+            .BackColor = Color.FromArgb(240, 240, 240),
+            .Name = "txtStockDisponible"
+        }
+        leftPanel.Controls.AddRange({lblStock, txtStock})
+        yPos += 60
+
+        ' Precio Unitario (solo lectura)
+        Dim lblPrecio As New Label With {
+            .Text = "Precio:",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtPrecio As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .ReadOnly = True,
+            .BackColor = Color.FromArgb(240, 240, 240),
+            .Name = "txtPrecioUnitario"
+        }
+        leftPanel.Controls.AddRange({lblPrecio, txtPrecio})
+        yPos += 60
+
+        ' Cantidad a Vender
+        Dim lblCantidad As New Label With {
+            .Text = "Cantidad: *",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtCantidad As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .Name = "txtCantidadVenta"
+        }
+        leftPanel.Controls.AddRange({lblCantidad, txtCantidad})
+        yPos += 60
+
+        ' Total a pagar (solo lectura)
+        Dim lblTotal As New Label With {
+            .Text = "Total a pagar:",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtTotal As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .ReadOnly = True,
+            .BackColor = Color.FromArgb(240, 240, 240),
+            .Name = "txtTotalPagar",
+            .Text = "$0.00"
+        }
+        leftPanel.Controls.AddRange({lblTotal, txtTotal})
+        yPos += 60
+
+        ' Fecha (solo lectura)
+        Dim lblFecha As New Label With {
+            .Text = "Fecha:",
+            .Location = New Point(20, yPos),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+        Dim txtFecha As New TextBox With {
+            .Location = New Point(20, yPos + 20),
+            .Width = 340,
+            .Font = New Font("Segoe UI", 10),
+            .ReadOnly = True,
+            .BackColor = Color.FromArgb(240, 240, 240),
+            .Name = "txtFechaVenta",
+            .Text = DateTime.Now.ToString("yyyy-MM-dd")
+        }
+        leftPanel.Controls.AddRange({lblFecha, txtFecha})
+        yPos += 70
+
+        ' Botón Confirmar Compra
+        Dim btnConfirmar As New Button With {
+            .Text = "Confirmar compra",
+            .Width = 340,
+            .Height = 42,
+            .Location = New Point(20, yPos),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(40, 167, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 11, FontStyle.Bold),
+            .Cursor = Cursors.Hand
+        }
+        btnConfirmar.FlatAppearance.BorderSize = 0
+        leftPanel.Controls.Add(btnConfirmar)
+
+        ' ** PANEL DERECHO: TABLA DE REPUESTOS **
+        Dim rightPanel As New Panel With {
+            .Dock = DockStyle.Fill,
+            .Padding = New Padding(20),
+            .BackColor = Color.WhiteSmoke
+        }
+
+        Dim panelTabla As New Panel With {
+            .Dock = DockStyle.Top,
+            .Height = 80,
+            .BackColor = Color.Transparent
+        }
+
+        Dim lblTablaTitle As New Label With {
+            .Text = "Repuestos Disponibles",
+            .Location = New Point(0, 5),
+            .Font = New Font("Segoe UI", 12, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True
+        }
+
+        ' Etiquetas de columnas
+        Dim lblColumnas As New Label With {
+            .Text = "ID  /  Nombre  /  Stock  /  Precio  /  Proveedor",
+            .Location = New Point(0, 35),
+            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(100, 100, 100),
+            .AutoSize = True
+        }
+
+        panelTabla.Controls.AddRange({lblTablaTitle, lblColumnas})
+        rightPanel.Controls.Add(panelTabla)
+
+        ' DataGridView de repuestos
+        Dim dgvRepuestos As New DataGridView With {
+            .Dock = DockStyle.Fill,
+            .BackgroundColor = Color.White,
+            .BorderStyle = BorderStyle.None,
+            .AllowUserToAddRows = False,
+            .AllowUserToDeleteRows = False,
+            .ReadOnly = True,
+            .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            .MultiSelect = False,
+            .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+            .RowHeadersVisible = False,
+            .EnableHeadersVisualStyles = False,
+            .Name = "dgvRepuestos",
+            .AllowUserToResizeRows = False,
+            .ScrollBars = ScrollBars.Both
+        }
+
+        ' Estilo del header
+        dgvRepuestos.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
+        dgvRepuestos.ColumnHeadersDefaultCellStyle.ForeColor = Color.White
+        dgvRepuestos.ColumnHeadersDefaultCellStyle.Font = New Font("Segoe UI", 10, FontStyle.Bold)
+        dgvRepuestos.ColumnHeadersDefaultCellStyle.Padding = New Padding(5)
+        dgvRepuestos.ColumnHeadersHeight = 40
+
+        ' Estilo de filas
+        dgvRepuestos.DefaultCellStyle.Font = New Font("Segoe UI", 9)
+        dgvRepuestos.DefaultCellStyle.SelectionBackColor = Color.FromArgb(100, 180, 255)
+        dgvRepuestos.DefaultCellStyle.SelectionForeColor = Color.White
+        dgvRepuestos.RowTemplate.Height = 35
+        dgvRepuestos.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245)
+
+        rightPanel.Controls.Add(dgvRepuestos)
+
+        ' Agregar paneles al contenedor principal
+        mainContainer.Controls.Add(rightPanel)
+        mainContainer.Controls.Add(leftPanel)
+
+        ' Agregar todo al panel principal
+        panelPrincipal.Controls.Add(mainContainer)
+        panelPrincipal.Controls.Add(header)
+
+        PanelContenido.Controls.Add(panelPrincipal)
+
+        ' ********************************************
+        ' *** PANEL VENTAS: FUNCIONES Y EVENTOS ****
+        ' ********************************************
+
+        ' Función para rellenar el formulario con un repuesto
+        Dim RellenarFormulario As Action(Of Integer) = Sub(idRepuesto)
+                                                           Try
+                                                               Dim rows = dtRepuestos.Select("RepuestoID = " & idRepuesto)
+                                                               If rows.Length > 0 Then
+                                                                   repuestoSeleccionado = idRepuesto
+                                                                   txtNombre.Text = rows(0)("NombreRepuesto").ToString()
+                                                                   stockDisponible = Convert.ToInt32(rows(0)("CantidadStock"))
+                                                                   txtStock.Text = stockDisponible.ToString()
+                                                                   txtPrecio.Text = "$" & Convert.ToDecimal(rows(0)("PrecioUnitario")).ToString("N2")
+                                                                   txtCantidad.Clear()
+                                                                   txtTotal.Text = "$0.00"
+
+                                                                   ' Seleccionar en el ComboBox
+                                                                   For i As Integer = 0 To cboRepuesto.Items.Count - 1
+                                                                       Dim item = cboRepuesto.Items(i)
+                                                                       If item.RepuestoID = idRepuesto Then
+                                                                           cboRepuesto.SelectedIndex = i
+                                                                           Exit For
+                                                                       End If
+                                                                   Next
+
+                                                                   ' Seleccionar en el DataGridView
+                                                                   For Each row As DataGridViewRow In dgvRepuestos.Rows
+                                                                       If Convert.ToInt32(row.Cells("RepuestoID").Value) = idRepuesto Then
+                                                                           row.Selected = True
+                                                                           dgvRepuestos.FirstDisplayedScrollingRowIndex = row.Index
+                                                                           Exit For
+                                                                       End If
+                                                                   Next
+
+                                                                   txtCantidad.Focus()
+                                                               End If
+                                                           Catch ex As Exception
+                                                               MessageBox.Show("Error al rellenar formulario: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                           End Try
+                                                       End Sub
+
+        ' Cargar repuestos disponibles
+        Dim CargarRepuestos As Action = Sub()
+                                            Try
+                                                Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                If conn Is Nothing Then Return
+
+                                                Dim query As String = "SELECT RepuestoID, NombreRepuesto, CantidadStock, PrecioUnitario, Proveedor FROM repuestos WHERE CantidadStock > 0 ORDER BY NombreRepuesto"
+                                                Dim da As New MySqlDataAdapter(query, conn)
+                                                dtRepuestos = New DataTable()
+                                                da.Fill(dtRepuestos)
+
+                                                dgvRepuestos.DataSource = dtRepuestos
+
+                                                ' Configurar columnas con anchos específicos
+                                                If dgvRepuestos.Columns.Count > 0 Then
+                                                    dgvRepuestos.Columns("RepuestoID").HeaderText = "ID"
+                                                    dgvRepuestos.Columns("RepuestoID").Width = 50
+
+                                                    dgvRepuestos.Columns("NombreRepuesto").HeaderText = "Nombre"
+                                                    dgvRepuestos.Columns("NombreRepuesto").Width = 250
+
+                                                    dgvRepuestos.Columns("CantidadStock").HeaderText = "Stock"
+                                                    dgvRepuestos.Columns("CantidadStock").Width = 80
+
+                                                    dgvRepuestos.Columns("PrecioUnitario").HeaderText = "Precio"
+                                                    dgvRepuestos.Columns("PrecioUnitario").Width = 100
+                                                    dgvRepuestos.Columns("PrecioUnitario").DefaultCellStyle.Format = "N2"
+
+                                                    dgvRepuestos.Columns("Proveedor").HeaderText = "Proveedor"
+                                                    dgvRepuestos.Columns("Proveedor").Width = 180
+                                                End If
+
+                                                ' Llenar ComboBox
+                                                cboRepuesto.Items.Clear()
+                                                cboRepuesto.DisplayMember = "NombreRepuesto"
+                                                cboRepuesto.ValueMember = "RepuestoID"
+                                                For Each row As DataRow In dtRepuestos.Rows
+                                                    cboRepuesto.Items.Add(New With {
+                                                        .RepuestoID = row("RepuestoID"),
+                                                        .NombreRepuesto = row("NombreRepuesto").ToString() & " (Stock: " & row("CantidadStock").ToString() & ")"
+                                                    })
+                                                Next
+
+                                            Catch ex As Exception
+                                                MessageBox.Show("Error al cargar repuestos: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                            Finally
+                                                ModuloConexion.Desconectar()
+                                            End Try
+                                        End Sub
+
+        ' Calcular total
+        Dim CalcularTotal As Action = Sub()
+                                          Try
+                                              If String.IsNullOrWhiteSpace(txtCantidad.Text) OrElse String.IsNullOrWhiteSpace(txtPrecio.Text) Then
+                                                  txtTotal.Text = "$0.00"
+                                                  Return
+                                              End If
+
+                                              Dim cantidad As Decimal
+                                              Dim precio As Decimal
+
+                                              If Decimal.TryParse(txtCantidad.Text, cantidad) AndAlso Decimal.TryParse(txtPrecio.Text.Replace("$", ""), precio) Then
+                                                  Dim total As Decimal = cantidad * precio
+                                                  txtTotal.Text = "$" & total.ToString("N2")
+                                              Else
+                                                  txtTotal.Text = "$0.00"
+                                              End If
+                                          Catch ex As Exception
+                                              txtTotal.Text = "$0.00"
+                                          End Try
+                                      End Sub
+
+        ' Evento: Cambio en ComboBox de repuesto
+        AddHandler cboRepuesto.SelectedIndexChanged, Sub()
+                                                         Try
+                                                             If cboRepuesto.SelectedIndex >= 0 Then
+                                                                 Dim selectedItem = cboRepuesto.SelectedItem
+                                                                 RellenarFormulario(selectedItem.RepuestoID)
+                                                             End If
+                                                         Catch ex As Exception
+                                                             MessageBox.Show("Error al seleccionar repuesto: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                         End Try
+                                                     End Sub
+
+        ' Evento: Click en DataGridView
+        AddHandler dgvRepuestos.CellClick, Sub(sender, e)
+                                               Try
+                                                   If e.RowIndex >= 0 AndAlso e.RowIndex < dgvRepuestos.Rows.Count Then
+                                                       Dim idRepuesto As Integer = Convert.ToInt32(dgvRepuestos.Rows(e.RowIndex).Cells("RepuestoID").Value)
+                                                       RellenarFormulario(idRepuesto)
+                                                   End If
+                                               Catch ex As Exception
+                                                   MessageBox.Show("Error al seleccionar fila: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                               End Try
+                                           End Sub
+
+        ' Evento: Cambio en cantidad
+        AddHandler txtCantidad.TextChanged, Sub()
+                                                CalcularTotal()
+                                            End Sub
+
+        ' Evento: Búsqueda de repuesto (con auto-selección)
+        AddHandler txtBuscarRepuesto.TextChanged, Sub()
+                                                      If dtRepuestos Is Nothing OrElse dtRepuestos.Rows.Count = 0 Then Return
+
+                                                      Dim filtro As String = txtBuscarRepuesto.Text.Trim()
+                                                      If String.IsNullOrEmpty(filtro) Then
+                                                          dtRepuestos.DefaultView.RowFilter = ""
+                                                          Return
+                                                      End If
+
+                                                      ' Filtrar tabla
+                                                      dtRepuestos.DefaultView.RowFilter = String.Format("NombreRepuesto LIKE '%{0}%' OR CONVERT(RepuestoID, 'System.String') LIKE '%{0}%'", filtro.Replace("'", "''"))
+
+                                                      ' Si hay solo un resultado, seleccionarlo automáticamente
+                                                      If dtRepuestos.DefaultView.Count = 1 Then
+                                                          Dim idRepuesto As Integer = Convert.ToInt32(dtRepuestos.DefaultView(0)("RepuestoID"))
+                                                          RellenarFormulario(idRepuesto)
+                                                      ElseIf dtRepuestos.DefaultView.Count > 1 Then
+                                                          ' Buscar coincidencia exacta por ID
+                                                          Dim idBuscado As Integer
+                                                          If Integer.TryParse(filtro, idBuscado) Then
+                                                              Dim rows = dtRepuestos.Select("RepuestoID = " & idBuscado)
+                                                              If rows.Length > 0 Then
+                                                                  RellenarFormulario(idBuscado)
+                                                              End If
+                                                          End If
+                                                      End If
+                                                  End Sub
+
+        ' Evento: Confirmar Compra
+        AddHandler btnConfirmar.Click, Sub()
+                                           ' Validaciones
+                                           If repuestoSeleccionado = -1 Then
+                                               MessageBox.Show("Por favor, seleccione un repuesto.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                               cboRepuesto.Focus()
+                                               Return
+                                           End If
+
+                                           If String.IsNullOrWhiteSpace(txtCantidad.Text) Then
+                                               MessageBox.Show("Por favor, ingrese la cantidad a vender.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                               txtCantidad.Focus()
+                                               Return
+                                           End If
+
+                                           Dim cantidadVenta As Integer
+                                           If Not Integer.TryParse(txtCantidad.Text, cantidadVenta) OrElse cantidadVenta <= 0 Then
+                                               MessageBox.Show("La cantidad debe ser un número entero positivo.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                               txtCantidad.Focus()
+                                               Return
+                                           End If
+
+                                           ' Validar stock disponible
+                                           If cantidadVenta > stockDisponible Then
+                                               MessageBox.Show("La cantidad solicitada (" & cantidadVenta.ToString() & ") excede el stock disponible (" & stockDisponible.ToString() & ")." & vbCrLf & vbCrLf & "Por favor, ingrese una cantidad menor o igual al stock disponible.", "Stock Insuficiente", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                               txtCantidad.Focus()
+                                               Return
+                                           End If
+
+                                           ' Confirmar venta
+                                           Dim total As Decimal = Decimal.Parse(txtTotal.Text.Replace("$", ""))
+                                           Dim resultado As DialogResult = MessageBox.Show(
+                                               "¿Confirmar la venta?" & vbCrLf & vbCrLf &
+                                               "Repuesto: " & txtNombre.Text & vbCrLf &
+                                               "Cantidad: " & cantidadVenta.ToString() & vbCrLf &
+                                               "Total: $" & total.ToString("N2"),
+                                               "Confirmar Venta",
+                                               MessageBoxButtons.YesNo,
+                                               MessageBoxIcon.Question)
+
+                                           If resultado = DialogResult.No Then Return
+
+                                           ' Procesar venta
+                                           Try
+                                               Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                               If conn Is Nothing Then Return
+
+                                               ' Actualizar stock
+                                               Dim queryUpdate As String = "UPDATE repuestos SET CantidadStock = CantidadStock - @cantidad WHERE RepuestoID = @id"
+                                               Using cmd As New MySqlCommand(queryUpdate, conn)
+                                                   cmd.Parameters.AddWithValue("@cantidad", cantidadVenta)
+                                                   cmd.Parameters.AddWithValue("@id", repuestoSeleccionado)
+                                                   cmd.ExecuteNonQuery()
+                                               End Using
+
+                                               MessageBox.Show("¡Venta realizada exitosamente!" & vbCrLf & vbCrLf &
+                                                             "Total: $" & total.ToString("N2") & vbCrLf &
+                                                             "Fecha: " & DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                                                             "Venta Confirmada",
+                                                             MessageBoxButtons.OK,
+                                                             MessageBoxIcon.Information)
+
+                                               ' Limpiar formulario
+                                               cboRepuesto.SelectedIndex = -1
+                                               txtNombre.Clear()
+                                               txtStock.Clear()
+                                               txtPrecio.Clear()
+                                               txtCantidad.Clear()
+                                               txtTotal.Text = "$0.00"
+                                               txtBuscarRepuesto.Clear()
+                                               repuestoSeleccionado = -1
+                                               stockDisponible = 0
+
+                                               ' Recargar datos
+                                               CargarRepuestos()
+
+                                           Catch ex As Exception
+                                               MessageBox.Show("Error al procesar la venta: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                           Finally
+                                               ModuloConexion.Desconectar()
+                                           End Try
+                                       End Sub
+
+        ' Cargar datos iniciales
+        CargarRepuestos()
+    End Sub
+
+    '************* FIN PANEL DE VENTAS ****************
 
 
     ' *******************************
