@@ -145,6 +145,7 @@ Partial Class FormMenuPrincipal
         Tuple.Create("Clientes", "Administrador;Vendedor;Mecanico;Aseguradora", "🧾"),
         Tuple.Create("Repuestos", "Administrador;Vendedor;Mecanico", "🔧"),
         Tuple.Create("Ventas", "Administrador;Vendedor", "💰"),
+        Tuple.Create("Historial de ventas", "Administrador;Vendedor", "📋"),
         Tuple.Create("Siniestros", "Administrador;Aseguradora", "⚠️"),
         Tuple.Create("Servicios", "Administrador;Vendedor;Mecanico", "🛠️")
     }
@@ -285,6 +286,9 @@ Partial Class FormMenuPrincipal
 
             Case "Ventas"
                 MostrarPanelVentas()
+
+            Case "Historial de ventas"
+                MostrarPanelHistorialVentas()
 
             Case "Siniestros"
                 MostrarPanelSiniestros()
@@ -928,33 +932,7 @@ Partial Class FormMenuPrincipal
         txtRutCliente = New TextBox With {.Location = New Point(20, yPos + 20), .Width = 340, .Font = New Font("Segoe UI", 10)}
         leftPanel.Controls.AddRange({lblCliente, txtRutCliente})
 
-        ' Botón para crear cliente rápidamente al lado del campo RUT
-        Dim btnCrearCliente As New Button With {
-            .Text = "➕ Crear Cliente",
-            .Width = 110,
-            .Height = 26,
-            .Location = New Point(txtRutCliente.Right + 6, txtRutCliente.Top),
-            .FlatStyle = FlatStyle.Flat,
-            .BackColor = Color.FromArgb(0, 122, 204),
-            .ForeColor = Color.White,
-            .Cursor = Cursors.Hand
-        }
-        btnCrearCliente.FlatAppearance.BorderSize = 0
-        AddHandler btnCrearCliente.Click, Sub()
-                                              Try
-                                                  Using frm As New FormCrearCliente()
-                                                      If frm.ShowDialog(Me) = DialogResult.OK Then
-                                                          If Not String.IsNullOrEmpty(frm.NuevoRut) Then
-                                                              txtRutCliente.Text = frm.NuevoRut
-                                                          End If
-                                                      End If
-                                                  End Using
-                                              Catch ex As Exception
-                                                  MessageBox.Show("No se pudo abrir el formulario de creación de cliente: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                                              End Try
-                                          End Sub
-        leftPanel.Controls.Add(btnCrearCliente)
-        yPos += 60
+
 
         ' Seguro
         Dim lblSeguro As New Label With {
@@ -1167,7 +1145,7 @@ Partial Class FormMenuPrincipal
                                                      dgvSiniestros.Columns("RutCompania").Width = 120
                                                      dgvSiniestros.Columns("Rut").HeaderText = "RUT Cliente"
                                                      dgvSiniestros.Columns("Rut").Width = 120
-                                                     dgvSiniestros.Columns("Estado_Seguro").HeaderText = "Estado Seguro"
+                                                     dgvSiniestros.Columns("Estado_Seguro").HeaderText = "Estado "
                                                      dgvSiniestros.Columns("Estado_Seguro").Width = 120
                                                  End If
 
@@ -1766,13 +1744,13 @@ Partial Class FormMenuPrincipal
                                            ' Confirmar venta
                                            Dim total As Decimal = Decimal.Parse(txtTotal.Text.Replace("$", ""))
                                            Dim resultado As DialogResult = MessageBox.Show(
-                                               "¿Confirmar la venta?" & vbCrLf & vbCrLf &
-                                               "Repuesto: " & txtNombre.Text & vbCrLf &
-                                               "Cantidad: " & cantidadVenta.ToString() & vbCrLf &
-                                               "Total: $" & total.ToString("N2"),
-                                               "Confirmar Venta",
-                                               MessageBoxButtons.YesNo,
-                                               MessageBoxIcon.Question)
+                                       "¿Confirmar la venta?" & vbCrLf & vbCrLf &
+                                       "Repuesto: " & txtNombre.Text & vbCrLf &
+                                       "Cantidad: " & cantidadVenta.ToString() & vbCrLf &
+                                       "Total: $" & total.ToString("N2"),
+                                       "Confirmar Venta",
+                                       MessageBoxButtons.YesNo,
+                                       MessageBoxIcon.Question)
 
                                            If resultado = DialogResult.No Then Return
 
@@ -1789,12 +1767,22 @@ Partial Class FormMenuPrincipal
                                                    cmd.ExecuteNonQuery()
                                                End Using
 
+                                               ' Guardar en historial de ventas (ventasrepuestos)
+                                               Dim queryHistorial As String = "INSERT INTO ventasrepuestos (NombreRepuesto, CantidadVendida, Cliente, FechaVenta, Total) VALUES (@nombre, @cantidad, @cliente, NOW(), @total)"
+                                               Using cmd As New MySqlCommand(queryHistorial, conn)
+                                                   cmd.Parameters.AddWithValue("@nombre", txtNombre.Text)
+                                                   cmd.Parameters.AddWithValue("@cantidad", cantidadVenta)
+                                                   cmd.Parameters.AddWithValue("@cliente", "Cliente General")
+                                                   cmd.Parameters.AddWithValue("@total", CInt(total))
+                                                   cmd.ExecuteNonQuery()
+                                               End Using
+
                                                MessageBox.Show("¡Venta realizada exitosamente!" & vbCrLf & vbCrLf &
-                                                             "Total: $" & total.ToString("N2") & vbCrLf &
-                                                             "Fecha: " & DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
-                                                             "Venta Confirmada",
-                                                             MessageBoxButtons.OK,
-                                                             MessageBoxIcon.Information)
+                                                     "Total: $" & total.ToString("N2") & vbCrLf &
+                                                     "Fecha: " & DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                                                     "Venta Confirmada",
+                                                     MessageBoxButtons.OK,
+                                                     MessageBoxIcon.Information)
 
                                                ' Limpiar formulario
                                                cboRepuesto.SelectedIndex = -1
@@ -1823,6 +1811,215 @@ Partial Class FormMenuPrincipal
 
     '************* FIN PANEL DE VENTAS ****************
 
+    ' *******************************
+    ' *** PANEL HISTORIAL VENTAS ***
+    ' *******************************
+
+    Private Sub MostrarPanelHistorialVentas()
+        Dim dt As New DataTable()
+
+        ' Panel principal
+        Dim panelPrincipal As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' Header
+        Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
+        Dim title As New Label With {
+        .Text = "📋 Historial de ventas",
+        .Font = New Font("Segoe UI", 18, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True,
+        .Location = New Point(20, 15)
+    }
+        header.Controls.Add(title)
+
+        ' Contenedor principal
+        Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke, .Padding = New Padding(20)}
+
+        ' Panel de búsqueda
+        Dim searchPanel As New Panel With {.Dock = DockStyle.Top, .Height = 100, .BackColor = Color.White, .Padding = New Padding(20)}
+
+        Dim lblBuscar As New Label With {
+        .Text = "ID/Descripción:",
+        .Location = New Point(20, 15),
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
+
+        Dim txtBuscar As New TextBox With {
+        .Location = New Point(20, 40),
+        .Width = 350,
+        .Font = New Font("Segoe UI", 11),
+        .Name = "txtBuscarHistorial"
+    }
+
+        Dim btnBuscar As New Button With {
+        .Text = "🔍 Buscar",
+        .Location = New Point(385, 38),
+        .Width = 120,
+        .Height = 30,
+        .FlatStyle = FlatStyle.Flat,
+        .BackColor = Color.FromArgb(0, 122, 204),
+        .ForeColor = Color.White,
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .Cursor = Cursors.Hand
+    }
+        btnBuscar.FlatAppearance.BorderSize = 0
+
+        Dim btnVerTodas As New Button With {
+        .Text = "📊 Ver todas las ventas",
+        .Location = New Point(520, 38),
+        .Width = 180,
+        .Height = 30,
+        .FlatStyle = FlatStyle.Flat,
+        .BackColor = Color.FromArgb(40, 167, 69),
+        .ForeColor = Color.White,
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .Cursor = Cursors.Hand
+    }
+        btnVerTodas.FlatAppearance.BorderSize = 0
+
+        searchPanel.Controls.AddRange({lblBuscar, txtBuscar, btnBuscar, btnVerTodas})
+
+        ' DataGridView para el historial
+        Dim dgvHistorial As New DataGridView With {
+        .Dock = DockStyle.Fill,
+        .BackgroundColor = Color.White,
+        .BorderStyle = BorderStyle.None,
+        .AllowUserToAddRows = False,
+        .AllowUserToDeleteRows = False,
+        .ReadOnly = True,
+        .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+        .MultiSelect = False,
+        .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+        .RowHeadersVisible = False,
+        .EnableHeadersVisualStyles = False,
+        .Name = "dgvHistorialVentas",
+        .AllowUserToResizeRows = False
+    }
+
+        ' Estilo del header
+        dgvHistorial.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
+        dgvHistorial.ColumnHeadersDefaultCellStyle.ForeColor = Color.White
+        dgvHistorial.ColumnHeadersDefaultCellStyle.Font = New Font("Segoe UI", 10, FontStyle.Bold)
+        dgvHistorial.ColumnHeadersDefaultCellStyle.Padding = New Padding(5)
+        dgvHistorial.ColumnHeadersHeight = 40
+
+        ' Estilo de filas
+        dgvHistorial.DefaultCellStyle.Font = New Font("Segoe UI", 9)
+        dgvHistorial.DefaultCellStyle.SelectionBackColor = Color.FromArgb(100, 180, 255)
+        dgvHistorial.DefaultCellStyle.SelectionForeColor = Color.White
+        dgvHistorial.RowTemplate.Height = 35
+        dgvHistorial.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245)
+
+        ' Panel para tabla con margen
+        Dim tablePanel As New Panel With {.Dock = DockStyle.Fill, .Padding = New Padding(0, 10, 0, 0)}
+        tablePanel.Controls.Add(dgvHistorial)
+
+        ' Agregar controles
+        mainContainer.Controls.Add(tablePanel)
+        mainContainer.Controls.Add(searchPanel)
+
+        panelPrincipal.Controls.Add(mainContainer)
+        panelPrincipal.Controls.Add(header)
+
+        PanelContenido.Controls.Add(panelPrincipal)
+
+        ' **********************************************
+        ' *** HISTORIAL VENTAS: FUNCIONES Y EVENTOS ***
+        ' **********************************************
+
+        ' Cargar historial completo desde la BD
+        Dim CargarHistorial As Action(Of String) = Sub(filtro As String)
+                                                       Try
+                                                           Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                           If conn Is Nothing Then Return
+
+                                                           Dim query As String = "SELECT VentaID, NombreRepuesto AS Descripción, CantidadVendida AS Cantidad, " &
+                                                                           "Cliente, Total, " &
+                                                                           "DATE_FORMAT(FechaVenta, '%d-%m-%Y') AS Fecha, " &
+                                                                           "DATE_FORMAT(FechaVenta, '%H:%i') AS Hora " &
+                                                                           "FROM ventasrepuestos"
+
+                                                           If Not String.IsNullOrWhiteSpace(filtro) Then
+                                                               query &= " WHERE VentaID LIKE @filtro OR NombreRepuesto LIKE @filtro"
+                                                           End If
+
+                                                           query &= " ORDER BY FechaVenta DESC"
+
+                                                           Dim da As New MySqlDataAdapter(query, conn)
+                                                           If Not String.IsNullOrWhiteSpace(filtro) Then
+                                                               da.SelectCommand.Parameters.AddWithValue("@filtro", "%" & filtro & "%")
+                                                           End If
+
+                                                           dt = New DataTable()
+                                                           da.Fill(dt)
+
+                                                           dgvHistorial.DataSource = dt
+
+                                                           ' Configurar columnas
+                                                           If dgvHistorial.Columns.Count > 0 Then
+                                                               dgvHistorial.Columns("VentaID").HeaderText = "ID"
+                                                               dgvHistorial.Columns("VentaID").Width = 60
+
+                                                               dgvHistorial.Columns("Descripción").HeaderText = "Descripción"
+                                                               dgvHistorial.Columns("Descripción").Width = 250
+
+                                                               dgvHistorial.Columns("Cantidad").HeaderText = "Cantidad"
+                                                               dgvHistorial.Columns("Cantidad").Width = 100
+
+                                                               dgvHistorial.Columns("Cliente").HeaderText = "Cliente"
+                                                               dgvHistorial.Columns("Cliente").Width = 150
+
+                                                               dgvHistorial.Columns("Total").HeaderText = "Total"
+                                                               dgvHistorial.Columns("Total").Width = 120
+                                                               dgvHistorial.Columns("Total").DefaultCellStyle.Format = "N0"
+                                                               dgvHistorial.Columns("Total").DefaultCellStyle.Font = New Font("Segoe UI", 9, FontStyle.Bold)
+
+                                                               dgvHistorial.Columns("Fecha").HeaderText = "Fecha"
+                                                               dgvHistorial.Columns("Fecha").Width = 100
+
+                                                               dgvHistorial.Columns("Hora").HeaderText = "Hora"
+                                                               dgvHistorial.Columns("Hora").Width = 80
+                                                           End If
+
+                                                       Catch ex As Exception
+                                                           MessageBox.Show("Error al cargar historial: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                       Finally
+                                                           ModuloConexion.Desconectar()
+                                                       End Try
+                                                   End Sub
+
+        ' Evento: Botón Buscar
+        AddHandler btnBuscar.Click, Sub()
+                                        Dim filtro As String = txtBuscar.Text.Trim()
+                                        If String.IsNullOrWhiteSpace(filtro) Then
+                                            MessageBox.Show("Por favor, ingrese un ID o descripción para buscar.", "Búsqueda", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                                            txtBuscar.Focus()
+                                            Return
+                                        End If
+                                        CargarHistorial(filtro)
+                                    End Sub
+
+        ' Evento: Botón Ver Todas
+        AddHandler btnVerTodas.Click, Sub()
+                                          txtBuscar.Clear()
+                                          CargarHistorial("")
+                                      End Sub
+
+        ' Evento: Búsqueda con Enter
+        AddHandler txtBuscar.KeyPress, Sub(sender, e)
+                                           If e.KeyChar = ChrW(Keys.Enter) Then
+                                               e.Handled = True
+                                               btnBuscar.PerformClick()
+                                           End If
+                                       End Sub
+
+        ' Cargar todas las ventas al inicio
+        CargarHistorial("")
+    End Sub
+
+    '************* FIN PANEL HISTORIAL DE VENTAS ****************
 
     ' *******************************
     ' ****  PANEL USUARIOS  *********
