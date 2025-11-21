@@ -1,6 +1,7 @@
 ﻿Imports MySql.Data.MySqlClient
 Imports System.Data
 Imports System.Linq
+Imports System.Drawing.Drawing2D
 
 Partial Class FormMenuPrincipal
 
@@ -28,13 +29,118 @@ Partial Class FormMenuPrincipal
     Private lblValOrders As Label
     Private lblValTechs As Label
     Private lblValAppointments As Label
+    Private lblValSales As Label
+    Private lblValStockouts As Label
     Private activityFlowPanel As FlowLayoutPanel
     Private rightPanelField As Panel
 
-    ' Opciones (Item3 = emoji). Se admite '*' para indicar visible a todos
+    ' Helper: mejora comportamiento de DataGridView en pantallas pequeñas
+    Private Sub ImproveDataGridView(dgv As DataGridView)
+        Try
+            If dgv Is Nothing Then Return
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None
+            dgv.DefaultCellStyle.WrapMode = DataGridViewTriState.False
+            dgv.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.False
+            dgv.AllowUserToResizeRows = False
+            dgv.AllowUserToResizeColumns = True
+            dgv.ScrollBars = ScrollBars.Vertical
+            dgv.RowHeadersVisible = False
+            dgv.AutoResizeColumns()
+        Catch
+        End Try
+    End Sub
+
+    ' Helpers para bordes redondeados
+    Private Function CreateRoundRectPath(rect As Rectangle, radius As Integer) As GraphicsPath
+        Dim gp As New GraphicsPath()
+        Dim d As Integer = radius * 2
+        gp.AddArc(rect.X, rect.Y, d, d, 180, 90)
+        gp.AddArc(rect.Right - d, rect.Y, d, d, 270, 90)
+        gp.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90)
+        gp.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90)
+        gp.CloseFigure()
+        Return gp
+    End Function
+
+    Private Sub ApplyRoundedRegion(ctrl As Control, radius As Integer)
+        Try
+            If ctrl Is Nothing Then Return
+            Dim r As Rectangle = New Rectangle(0, 0, Math.Max(1, ctrl.Width - 1), Math.Max(1, ctrl.Height - 1))
+            Dim gp = CreateRoundRectPath(r, radius)
+            ctrl.Region = New Region(gp)
+        Catch
+        End Try
+    End Sub
+
+    Private Sub StyleTextBoxesInPanel(p As Control)
+        Try
+            If p Is Nothing Then Return
+            For Each tb As TextBox In p.Controls.OfType(Of TextBox)()
+                tb.BorderStyle = BorderStyle.FixedSingle
+                AddHandler tb.Resize, Sub(s, e) ApplyRoundedRegion(tb, 6)
+                ApplyRoundedRegion(tb, 6)
+            Next
+        Catch
+        End Try
+    End Sub
+
+    ' Standard DataGridView styling helper
+    Private Sub StyleDataGridView(dgv As DataGridView)
+        Try
+            If dgv Is Nothing Then Return
+            dgv.EnableHeadersVisualStyles = False
+            dgv.BackgroundColor = Color.White
+            dgv.BorderStyle = BorderStyle.None
+            dgv.RowHeadersVisible = False
+            dgv.AllowUserToAddRows = False
+            dgv.AllowUserToDeleteRows = False
+            dgv.ReadOnly = True
+            dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            dgv.MultiSelect = False
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            dgv.ColumnHeadersHeight = 44
+            dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White
+            dgv.ColumnHeadersDefaultCellStyle.Font = New Font("Segoe UI", 10, FontStyle.Bold)
+            dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
+            dgv.GridColor = Color.FromArgb(230, 230, 230)
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 250)
+            dgv.DefaultCellStyle.Padding = New Padding(8, 6, 8, 6)
+            dgv.DefaultCellStyle.Font = New Font("Segoe UI", 9)
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(100, 180, 255)
+            dgv.DefaultCellStyle.SelectionForeColor = Color.White
+            dgv.ScrollBars = ScrollBars.Both
+            dgv.AllowUserToResizeColumns = True
+            dgv.AllowUserToOrderColumns = True
+            dgv.ClearSelection()
+            If dgv.Rows.Count > 0 Then
+                Try
+                    dgv.FirstDisplayedScrollingRowIndex = 0
+                Catch
+                End Try
+            End If
+        Catch
+        End Try
+    End Sub
+
+    ' Apply rounded visuals to a button
+    Private Sub ApplyButtonStyle(btn As Button, Optional radius As Integer = 8)
+        Try
+            If btn Is Nothing Then Return
+            btn.FlatStyle = FlatStyle.Flat
+            btn.FlatAppearance.BorderSize = 0
+            btn.Cursor = Cursors.Hand
+            AddHandler btn.Resize, Sub(s, e) ApplyRoundedRegion(btn, radius)
+            ApplyRoundedRegion(btn, radius)
+        Catch
+        End Try
+    End Sub
+
+    ' Opciones Se admite '*' para indicar visible a todos
     Private opcionesMenu As New List(Of Tuple(Of String, String, String)) From {
         Tuple.Create("Inicio", "*", "🏠"),
-        Tuple.Create("Empleados", "Administrador", "👥"),
         Tuple.Create("Usuarios", "Administrador", "👤"),
         Tuple.Create("Clientes", "Administrador;Vendedor;Mecanico;Aseguradora", "🧾"),
         Tuple.Create("Repuestos", "Administrador;Vendedor;Mecanico", "🔧"),
@@ -392,9 +498,9 @@ Partial Class FormMenuPrincipal
 
 
 
-        ' ***************************************
+        ' **************************************
         ' *** P.REPUESTOS, TABLA Y BÚSQUEDA ***
-        ' ***************************************
+        ' **************************************
 
 
         Dim rightPanel As New Panel With {
@@ -427,7 +533,7 @@ Partial Class FormMenuPrincipal
         panelBusqueda.Controls.AddRange({lblBuscar, txtBuscar})
         rightPanel.Controls.Add(panelBusqueda)
 
-        ' DataGridView
+        ' DataGridView de repuestos
         Dim dgvRepuestos As New DataGridView With {
             .Dock = DockStyle.Fill,
             .BackgroundColor = Color.White,
@@ -493,9 +599,34 @@ Partial Class FormMenuPrincipal
                                                 dgvRepuestos.Columns("PrecioUnitario").HeaderText = "Precio"
                                                 dgvRepuestos.Columns("Proveedor").HeaderText = "Proveedor"
 
-                                                dgvRepuestos.Columns("RepuestoID").Width = 60
-                                                dgvRepuestos.Columns("CantidadStock").Width = 80
-                                                dgvRepuestos.Columns("PrecioUnitario").Width = 100
+                                                ' Inicial widths and make columns resizable (Excel-like)
+                                                If dgvRepuestos.Columns.Count > 0 Then
+                                                    dgvRepuestos.Columns("RepuestoID").Width = 60
+                                                    dgvRepuestos.Columns("RepuestoID").MinimumWidth = 50
+                                                    dgvRepuestos.Columns("RepuestoID").Resizable = DataGridViewTriState.True
+
+                                                    dgvRepuestos.Columns("NombreRepuesto").Width = 300
+                                                    dgvRepuestos.Columns("NombreRepuesto").MinimumWidth = 120
+                                                    dgvRepuestos.Columns("NombreRepuesto").Resizable = DataGridViewTriState.True
+
+                                                    dgvRepuestos.Columns("CantidadStock").Width = 80
+                                                    dgvRepuestos.Columns("CantidadStock").MinimumWidth = 60
+                                                    dgvRepuestos.Columns("CantidadStock").Resizable = DataGridViewTriState.True
+
+                                                    dgvRepuestos.Columns("PrecioUnitario").Width = 100
+                                                    dgvRepuestos.Columns("PrecioUnitario").MinimumWidth = 70
+                                                    dgvRepuestos.Columns("PrecioUnitario").DefaultCellStyle.Format = "N2"
+                                                    dgvRepuestos.Columns("PrecioUnitario").Resizable = DataGridViewTriState.True
+
+                                                    dgvRepuestos.Columns("Proveedor").Width = 180
+                                                    dgvRepuestos.Columns("Proveedor").MinimumWidth = 80
+                                                    dgvRepuestos.Columns("Proveedor").Resizable = DataGridViewTriState.True
+                                                End If
+
+                                                ' Ensure scrollbars are available when needed
+                                                dgvRepuestos.ScrollBars = ScrollBars.Both
+
+                                                ' Do not call ImproveDataGridView here - it forces Fill sizing
 
                                             Catch ex As Exception
                                                 MessageBox.Show("Error al cargar repuestos: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -712,7 +843,6 @@ Partial Class FormMenuPrincipal
         ' Cargar datos iniciales
         CargarRepuestos()
     End Sub
-
     '************* FIN PANEL DE REPUESTOS ****************
 
 
@@ -1333,7 +1463,7 @@ Partial Class FormMenuPrincipal
         ' Botón Confirmar Compra
         Dim btnConfirmar As New Button With {
             .Text = "Confirmar compra",
-            .Width = 340,
+            .Width = 160,
             .Height = 42,
             .Location = New Point(20, yPos),
             .FlatStyle = FlatStyle.Flat,
@@ -1395,6 +1525,16 @@ Partial Class FormMenuPrincipal
             .AllowUserToResizeRows = False,
             .ScrollBars = ScrollBars.Both
         }
+
+        ' Excel-like visuals and behavior
+        dgvRepuestos.AllowUserToResizeColumns = True
+        dgvRepuestos.AllowUserToOrderColumns = True
+        dgvRepuestos.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single
+        dgvRepuestos.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
+        dgvRepuestos.GridColor = Color.FromArgb(230, 230, 230)
+        dgvRepuestos.DefaultCellStyle.Padding = New Padding(6, 4, 6, 4)
+        dgvRepuestos.ScrollBars = ScrollBars.Both
+        dgvRepuestos.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
 
         ' Estilo del header
         dgvRepuestos.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
@@ -1687,7 +1827,6 @@ Partial Class FormMenuPrincipal
     ' *******************************
     ' ****  PANEL USUARIOS  *********
     ' *******************************
-
     Private Sub MostrarPanelUsuarios()
         ' Variables para el módulo de usuarios
         Dim dt As New DataTable()
@@ -1700,119 +1839,119 @@ Partial Class FormMenuPrincipal
         ' Header
         Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
         Dim title As New Label With {
-            .Text = "👤 Gestión de Usuarios",
-            .Font = New Font("Segoe UI", 18, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(40, 50, 60),
-            .AutoSize = True,
-            .Location = New Point(20, 15)
-        }
+        .Text = "👤 Gestión de Usuarios",
+        .Font = New Font("Segoe UI", 18, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True,
+        .Location = New Point(20, 15)
+    }
         header.Controls.Add(title)
 
         ' Contenedor principal (izquierda: formulario; derecha: tabla)
         Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
 
         ' ************************************
-        ' ****  PANEL USUARIOS: fORMULARIO ***
+        ' ****  PANEL USUARIOS: FORMULARIO ***
         ' ************************************
 
         Dim leftPanel As New Panel With {
-            .Width = 380,
-            .Dock = DockStyle.Left,
-            .Padding = New Padding(20),
-            .BackColor = Color.White
-        }
+        .Width = 380,
+        .Dock = DockStyle.Left,
+        .Padding = New Padding(20),
+        .BackColor = Color.White
+    }
 
         Dim yPos As Integer = 20
 
         ' Título del formulario
         Dim lblFormTitle As New Label With {
-            .Text = "Datos del Usuario",
-            .Font = New Font("Segoe UI", 14, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(0, 122, 204),
-            .Location = New Point(20, yPos),
-            .AutoSize = True
-        }
+        .Text = "Datos del Usuario",
+        .Font = New Font("Segoe UI", 14, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(0, 122, 204),
+        .Location = New Point(20, yPos),
+        .AutoSize = True
+    }
         leftPanel.Controls.Add(lblFormTitle)
         yPos += 45
 
         ' Campo RUT
         Dim lblRut As New Label With {
-            .Text = "RUT: *",
-            .Location = New Point(20, yPos),
-            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(40, 50, 60),
-            .AutoSize = True
-        }
+        .Text = "RUT: *",
+        .Location = New Point(20, yPos),
+        .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
         Dim txtRut As New TextBox With {
-            .Location = New Point(20, yPos + 20),
-            .Width = 340,
-            .Font = New Font("Segoe UI", 10),
-            .MaxLength = 11,
-            .Name = "txtRutUsuario"
-        }
+        .Location = New Point(20, yPos + 20),
+        .Width = 340,
+        .Font = New Font("Segoe UI", 10),
+        .MaxLength = 11,
+        .Name = "txtRutUsuario"
+    }
         leftPanel.Controls.AddRange({lblRut, txtRut})
         yPos += 60
 
         ' Campo Correo
         Dim lblCorreo As New Label With {
-            .Text = "Correo Electrónico: *",
-            .Location = New Point(20, yPos),
-            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(40, 50, 60),
-            .AutoSize = True
-        }
+        .Text = "Correo Electrónico: *",
+        .Location = New Point(20, yPos),
+        .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
         Dim txtCorreo As New TextBox With {
-            .Location = New Point(20, yPos + 20),
-            .Width = 340,
-            .Font = New Font("Segoe UI", 10),
-            .Name = "txtCorreoUsuario"
-        }
+        .Location = New Point(20, yPos + 20),
+        .Width = 340,
+        .Font = New Font("Segoe UI", 10),
+        .Name = "txtCorreoUsuario"
+    }
         leftPanel.Controls.AddRange({lblCorreo, txtCorreo})
         yPos += 60
 
         ' Campo Contraseña
         Dim lblContraseña As New Label With {
-            .Text = "Contraseña: *",
-            .Location = New Point(20, yPos),
-            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(40, 50, 60),
-            .AutoSize = True
-        }
+        .Text = "Contraseña: *",
+        .Location = New Point(20, yPos),
+        .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
         Dim txtContraseña As New TextBox With {
-            .Location = New Point(20, yPos + 20),
-            .Width = 340,
-            .Font = New Font("Segoe UI", 10),
-            .Name = "txtContraseñaUsuario"
-        }
+        .Location = New Point(20, yPos + 20),
+        .Width = 340,
+        .Font = New Font("Segoe UI", 10),
+        .Name = "txtContraseñaUsuario"
+    }
         leftPanel.Controls.AddRange({lblContraseña, txtContraseña})
         yPos += 60
 
         ' Campo Tipo (ComboBox)
         Dim lblTipo As New Label With {
-            .Text = "Tipo de Usuario: *",
-            .Location = New Point(20, yPos),
-            .Font = New Font("Segoe UI", 9, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(40, 50, 60),
-            .AutoSize = True
-        }
+        .Text = "Tipo de Usuario: *",
+        .Location = New Point(20, yPos),
+        .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
         Dim cboTipo As New ComboBox With {
-            .Location = New Point(20, yPos + 20),
-            .Width = 340,
-            .Font = New Font("Segoe UI", 10),
-            .DropDownStyle = ComboBoxStyle.DropDownList,
-            .Name = "cboTipoUsuario"
-        }
+        .Location = New Point(20, yPos + 20),
+        .Width = 340,
+        .Font = New Font("Segoe UI", 10),
+        .DropDownStyle = ComboBoxStyle.DropDownList,
+        .Name = "cboTipoUsuario"
+    }
         cboTipo.Items.AddRange({"Administrador", "Vendedor", "Mecanico", "Aseguradora", "Analista", "Gerente"})
         leftPanel.Controls.AddRange({lblTipo, cboTipo})
         yPos += 80
 
         ' Panel de botones
         Dim panelBotones As New Panel With {
-            .Location = New Point(20, yPos),
-            .Width = 340,
-            .Height = 100,
-            .BackColor = Color.Transparent
-        }
+        .Location = New Point(20, yPos),
+        .Width = 340,
+        .Height = 100,
+        .BackColor = Color.Transparent
+    }
 
         btnNuevo = New Button With {
             .Text = "➕ Nuevo",
@@ -1884,17 +2023,17 @@ Partial Class FormMenuPrincipal
 
         ' Barra de búsqueda
         Dim panelBusqueda As New Panel With {
-            .Dock = DockStyle.Top,
-            .Height = 70,
-            .BackColor = Color.Transparent
-        }
+        .Dock = DockStyle.Top,
+        .Height = 80,
+        .BackColor = Color.Transparent
+    }
 
         Dim lblBuscar As New Label With {
-            .Text = "🔍 Buscar por RUT o Correo:",
-            .Location = New Point(0, 5),
-            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
-            .AutoSize = True
-        }
+        .Text = "🔍 Buscar por RUT o Correo:",
+        .Location = New Point(0, 5),
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .AutoSize = True
+    }
 
         Dim txtBuscar As New TextBox With {
             .Location = New Point(0, 25),
@@ -1908,19 +2047,19 @@ Partial Class FormMenuPrincipal
 
         ' DataGridView
         Dim dgvUsuarios As New DataGridView With {
-            .Dock = DockStyle.Fill,
-            .BackgroundColor = Color.White,
-            .BorderStyle = BorderStyle.None,
-            .AllowUserToAddRows = False,
-            .AllowUserToDeleteRows = False,
-            .ReadOnly = True,
-            .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            .MultiSelect = False,
-            .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            .RowHeadersVisible = False,
-            .EnableHeadersVisualStyles = False,
-            .Name = "dgvUsuarios"
-        }
+        .Dock = DockStyle.Fill,
+        .BackgroundColor = Color.White,
+        .BorderStyle = BorderStyle.None,
+        .AllowUserToAddRows = False,
+        .AllowUserToDeleteRows = False,
+        .ReadOnly = True,
+        .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+        .MultiSelect = False,
+        .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+        .RowHeadersVisible = False,
+        .EnableHeadersVisualStyles = False,
+        .Name = "dgvUsuarios"
+    }
 
         ' Estilo del header
         dgvUsuarios.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
@@ -2252,7 +2391,7 @@ Partial Class FormMenuPrincipal
 
         ' Header
         Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
-        Dim title As New Label With {.Text = "Ultra Mecánica", .Font = New Font("Segoe UI", 18, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True, .Location = New Point(20, 15)}
+        Dim title As New Label With {.Text = "Ultra Mecánica", .Font = New Font("Segoe UI", 20, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True, .Location = New Point(20, 15)}
         header.Controls.Add(title)
 
         ' Contenedor principal (izquierda: cards + botones; derecha: actividad reciente)
@@ -2284,19 +2423,42 @@ Partial Class FormMenuPrincipal
         lblValOrders = New Label()
         lblValTechs = New Label()
         lblValAppointments = New Label()
+        lblValSales = New Label()
+        lblValStockouts = New Label()
 
         Dim card1 = createCard("Órdenes Activas", lblValOrders, "Última agregada: #A5732")
         Dim card2 = createCard("Técnicos Disponibles", lblValTechs, "En servicio: 3 / En pausa: 2")
         Dim card3 = createCard("Citas Próximas", lblValAppointments, "Mañana: Juan Pérez")
+        Dim card4 = createCard("Ventas (Hoy)", lblValSales, "Filtro por día/mes")
+        Dim card5 = createCard("Repuestos sin stock", lblValStockouts, "Reponer cuanto antes")
 
         ' Valores por defecto
         lblValOrders.Text = "--"
         lblValTechs.Text = "--"
         lblValAppointments.Text = "--"
+        lblValSales.Text = "--"
+        lblValStockouts.Text = "--"
 
-        statsFlow.Controls.Add(card1)
-        statsFlow.Controls.Add(card2)
-        statsFlow.Controls.Add(card3)
+        '        statsFlow.Controls.Add(card1)
+        '        statsFlow.Controls.Add(card2)
+        '        statsFlow.Controls.Add(card3)
+        ' Role-sensitive: mostrar tarjetas según rol
+        Dim role = If(UsuarioRol, String.Empty).Trim().ToLower()
+        If role = "mecanico" Then
+            statsFlow.Controls.Add(card2)
+            statsFlow.Controls.Add(card5)
+        ElseIf role = "vendedor" Then
+            statsFlow.Controls.Add(card4)
+            statsFlow.Controls.Add(card5)
+        Else
+            ' administrador u otros
+            statsFlow.Controls.Add(card1)
+            statsFlow.Controls.Add(card2)
+            statsFlow.Controls.Add(card3)
+            statsFlow.Controls.Add(card4)
+            statsFlow.Controls.Add(card5)
+        End If
+
 
         ' Espacio entre stats y los demás elementos
         Dim spacer As New Panel With {.Height = 12, .Dock = DockStyle.Top}
@@ -2405,6 +2567,24 @@ Partial Class FormMenuPrincipal
             Catch ex As Exception
             End Try
 
+            ' Ventas del día
+            Try
+                Using cmd As New MySqlCommand("SELECT IFNULL(SUM(Total),0) FROM ventas WHERE DATE(Fecha) = CURDATE()", conn)
+                    Dim s = cmd.ExecuteScalar()
+                    If s IsNot Nothing Then lblValSales.Text = Convert.ToDecimal(s).ToString("N2")
+                End Using
+            Catch ex As Exception
+            End Try
+
+            ' Repuestos sin stock
+            Try
+                Using cmd As New MySqlCommand("SELECT COUNT(*) FROM repuestos WHERE CantidadStock <= 0", conn)
+                    Dim r = cmd.ExecuteScalar()
+                    If r IsNot Nothing Then lblValStockouts.Text = r.ToString()
+                End Using
+            Catch ex As Exception
+            End Try
+
             ' Cargar actividades recientes si existe tabla 'actividades' con columnas Descripcion y Fecha
             Try
                 activityFlowPanel.Controls.Clear()
@@ -2447,6 +2627,8 @@ Partial Class FormMenuPrincipal
         If lblValOrders IsNot Nothing Then lblValOrders.ForeColor = primaryColor
         If lblValTechs IsNot Nothing Then lblValTechs.ForeColor = primaryColor
         If lblValAppointments IsNot Nothing Then lblValAppointments.ForeColor = primaryColor
+        If lblValSales IsNot Nothing Then lblValSales.ForeColor = primaryColor
+        If lblValStockouts IsNot Nothing Then lblValStockouts.ForeColor = primaryColor
 
         For Each btn In PanelContenido.Controls.OfType(Of Button)()
             btn.BackColor = Color.FromArgb(240, 240, 240)
@@ -2619,3 +2801,4 @@ Partial Class FormMenuPrincipal
     End Sub
 
 End Class
+
