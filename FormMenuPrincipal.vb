@@ -16,6 +16,12 @@ Partial Class FormMenuPrincipal
     Private btnLogout As Button
     Private tt As ToolTip
 
+    ' Reusable buttons (some methods assign to these without local Dim)
+    Private btnNuevo As Button
+    Private btnGuardar As Button
+    Private btnEditar As Button
+    Private btnEliminar As Button
+
     ' Color principal de la UI (se puede cambiar desde Configuración Rápida)
     Private primaryColor As Color = Color.FromArgb(0, 122, 204)
 
@@ -139,6 +145,7 @@ Partial Class FormMenuPrincipal
         Tuple.Create("Clientes", "Administrador;Vendedor;Mecanico;Aseguradora", "🧾"),
         Tuple.Create("Repuestos", "Administrador;Vendedor;Mecanico", "🔧"),
         Tuple.Create("Ventas", "Administrador;Vendedor", "💰"),
+        Tuple.Create("Historial de ventas", "Administrador;Vendedor", "📋"),
         Tuple.Create("Siniestros", "Administrador;Aseguradora", "⚠️"),
         Tuple.Create("Servicios", "Administrador;Vendedor;Mecanico", "🛠️")
     }
@@ -279,6 +286,12 @@ Partial Class FormMenuPrincipal
 
             Case "Ventas"
                 MostrarPanelVentas()
+
+            Case "Historial de ventas"
+                MostrarPanelHistorialVentas()
+
+            Case "Siniestros"
+                MostrarPanelSiniestros()
 
             Case Else
                 Dim lbl As New Label With {.Text = $"Has seleccionado: {opcionSeleccionada}", .Font = New Font("Segoe UI", 16, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True, .Location = New Point(50, 50)}
@@ -423,13 +436,13 @@ Partial Class FormMenuPrincipal
 
         ' Panel de botones
         Dim panelBotones As New Panel With {
-        .Location = New Point(20, yPos),
-        .Width = 340,
-        .Height = 100,
-        .BackColor = Color.Transparent
-    }
+            .Location = New Point(20, yPos),
+            .Width = 340,
+            .Height = 100,
+            .BackColor = Color.Transparent
+        }
 
-        Dim btnNuevo As New Button With {
+        btnNuevo = New Button With {
         .Text = "➕ Nuevo",
         .Width = 160,
         .Height = 38,
@@ -442,7 +455,7 @@ Partial Class FormMenuPrincipal
     }
         btnNuevo.FlatAppearance.BorderSize = 0
 
-        Dim btnGuardar As New Button With {
+        btnGuardar = New Button With {
         .Text = "💾 Guardar",
         .Width = 160,
         .Height = 38,
@@ -456,7 +469,7 @@ Partial Class FormMenuPrincipal
     }
         btnGuardar.FlatAppearance.BorderSize = 0
 
-        Dim btnEditar As New Button With {
+        btnEditar = New Button With {
         .Text = "✏️ Editar",
         .Width = 160,
         .Height = 38,
@@ -470,7 +483,7 @@ Partial Class FormMenuPrincipal
     }
         btnEditar.FlatAppearance.BorderSize = 0
 
-        Dim btnEliminar As New Button With {
+        btnEliminar = New Button With {
         .Text = "🗑️ Eliminar",
         .Width = 160,
         .Height = 38,
@@ -534,23 +547,11 @@ Partial Class FormMenuPrincipal
             .ReadOnly = True,
             .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             .MultiSelect = False,
-            .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+            .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             .RowHeadersVisible = False,
             .EnableHeadersVisualStyles = False,
-            .Name = "dgvRepuestos",
-            .AllowUserToResizeRows = False,
-            .ScrollBars = ScrollBars.Both
+            .Name = "dgvRepuestos"
         }
-
-        ' Excel-like visuals and behavior
-        dgvRepuestos.AllowUserToResizeColumns = True
-        dgvRepuestos.AllowUserToOrderColumns = True
-        dgvRepuestos.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single
-        dgvRepuestos.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
-        dgvRepuestos.GridColor = Color.FromArgb(230, 230, 230)
-        dgvRepuestos.DefaultCellStyle.Padding = New Padding(6, 4, 6, 4)
-        dgvRepuestos.ScrollBars = ScrollBars.Both
-        dgvRepuestos.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
 
         ' Estilo del header
         dgvRepuestos.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
@@ -581,7 +582,7 @@ Partial Class FormMenuPrincipal
 
 
         ' ********************************************
-        ' *** PANEL Repuestos Funciones y EVentos ****
+        ' *** PANEL REPUESTOS Funciones y EVentos ****
         ' ********************************************
 
         ' Cargar Los Repuestos de la base de datos 
@@ -838,7 +839,8 @@ Partial Class FormMenuPrincipal
                                               If String.IsNullOrEmpty(filtro) Then
                                                   dt.DefaultView.RowFilter = ""
                                               Else
-                                                  dt.DefaultView.RowFilter = String.Format("NombreRepuesto LIKE '%{0}%' OR CONVERT(RepuestoID, 'System.String') LIKE '%{0}%'", filtro.Replace("'", "''"))
+                                                  dt.DefaultView.RowFilter = String.Format("NombreRepuesto LIKE '%{0}%' OR CONVERT(RepuestoID, 'System.String') LIKE '%{0}%'",
+                                                                                          filtro.Replace("'", "''"))
                                               End If
                                           End Sub
 
@@ -848,6 +850,394 @@ Partial Class FormMenuPrincipal
     '************* FIN PANEL DE REPUESTOS ****************
 
 
+    '========================================
+    '****  PANEL DE SINIESTROS  ****
+    '========================================
+    Private Sub MostrarPanelSiniestros()
+        Dim dtSiniestros As New DataTable()
+        Dim modoEdicion As Boolean = False
+        Dim idSiniestroSeleccionado As Integer = -1
+
+        ' Declarar todas las variables que necesitaremos
+        Dim txtId, txtDetalle, txtCompania, txtRutCliente, txtSeguro As TextBox
+        Dim dtpFecha As DateTimePicker
+        Dim dgvSiniestros As DataGridView
+        Dim txtBuscarCliente As TextBox
+        Dim cboEstado As ComboBox
+
+        ' Panel principal
+        Dim panelPrincipal As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' Header
+        Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
+        Dim title As New Label With {
+            .Text = "⚠️ Gestión de Siniestros",
+            .Font = New Font("Segoe UI", 18, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(40, 50, 60),
+            .AutoSize = True,
+            .Location = New Point(20, 15)
+        }
+        header.Controls.Add(title)
+
+        Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' Panel izquierdo - Formulario
+        Dim leftPanel As New Panel With {
+            .Width = 400,
+            .Dock = DockStyle.Left,
+            .Padding = New Padding(20),
+            .BackColor = Color.White,
+            .AutoScroll = True
+        }
+
+        Dim yPos As Integer = 20
+
+        ' Formulario Siniestro
+        Dim lblFormTitle As New Label With {
+            .Text = "Gestión de Siniestro",
+            .Font = New Font("Segoe UI", 14, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(0, 122, 204),
+            .Location = New Point(20, yPos),
+            .AutoSize = True
+        }
+        leftPanel.Controls.Add(lblFormTitle)
+        yPos += 45
+
+        ' ID
+        Dim lblId As New Label With {.Text = "ID:", .Location = New Point(20, yPos), .Font = New Font("Segoe UI", 9, FontStyle.Bold), .AutoSize = True}
+        txtId = New TextBox With {.Location = New Point(20, yPos + 20), .Width = 340, .Font = New Font("Segoe UI", 10), .ReadOnly = True, .BackColor = Color.FromArgb(230, 230, 230), .Text = "Auto-generado"}
+        leftPanel.Controls.AddRange({lblId, txtId})
+        yPos += 60
+
+        ' Detalle
+        Dim lblDetalle As New Label With {.Text = "Detalle: *", .Location = New Point(20, yPos), .Font = New Font("Segoe UI", 9, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True}
+        txtDetalle = New TextBox With {.Location = New Point(20, yPos + 20), .Width = 340, .Height = 70, .Font = New Font("Segoe UI", 10), .Multiline = True}
+        leftPanel.Controls.AddRange({lblDetalle, txtDetalle})
+        yPos += 100
+
+        ' Fecha
+        Dim lblFecha As New Label With {.Text = "Fecha: *", .Location = New Point(20, yPos), .Font = New Font("Segoe UI", 9, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True}
+        dtpFecha = New DateTimePicker With {.Location = New Point(20, yPos + 20), .Width = 340, .Format = DateTimePickerFormat.Short}
+        leftPanel.Controls.AddRange({lblFecha, dtpFecha})
+        yPos += 60
+
+        ' Compañía
+        Dim lblCompania As New Label With {.Text = "Compañía: *", .Location = New Point(20, yPos), .Font = New Font("Segoe UI", 9, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True}
+        txtCompania = New TextBox With {.Location = New Point(20, yPos + 20), .Width = 340, .Font = New Font("Segoe UI", 10)}
+        leftPanel.Controls.AddRange({lblCompania, txtCompania})
+        yPos += 60
+
+        ' Cliente (RUT)
+        Dim lblCliente As New Label With {.Text = "Cliente (RUT): *", .Location = New Point(20, yPos), .Font = New Font("Segoe UI", 9, FontStyle.Bold), .ForeColor = Color.FromArgb(40, 50, 60), .AutoSize = True}
+        txtRutCliente = New TextBox With {.Location = New Point(20, yPos + 20), .Width = 340, .Font = New Font("Segoe UI", 10)}
+        leftPanel.Controls.AddRange({lblCliente, txtRutCliente})
+
+
+
+        ' Seguro
+        Dim lblSeguro As New Label With {
+        .Text = "Seguro: *",
+        .Location = New Point(20, yPos),
+        .Font = New Font("Segoe UI", 9, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
+        txtSeguro = New TextBox With {
+        .Location = New Point(20, yPos + 20),
+        .Width = 340,
+        .Font = New Font("Segoe UI", 10),
+        .Name = "txtSeguro"
+    }
+        leftPanel.Controls.AddRange({lblSeguro, txtSeguro})
+        yPos += 60
+
+        ' Panel de botones
+        Dim panelBotones As New Panel With {
+            .Location = New Point(20, yPos),
+            .Width = 340,
+            .Height = 100,
+            .BackColor = Color.Transparent
+        }
+
+        btnNuevo = New Button With {
+            .Text = "➕ Nuevo",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(0, 0),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(0, 122, 204),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Cursor = Cursors.Hand
+        }
+        btnNuevo.FlatAppearance.BorderSize = 0
+
+        btnGuardar = New Button With {
+            .Text = "💾 Guardar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(180, 0),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(40, 167, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
+        btnGuardar.FlatAppearance.BorderSize = 0
+
+        btnEditar = New Button With {
+            .Text = "✏️ Editar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(0, 48),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(255, 193, 7),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
+        btnEditar.FlatAppearance.BorderSize = 0
+
+        btnEliminar = New Button With {
+            .Text = "🗑️ Eliminar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(180, 48),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(220, 53, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
+        btnEliminar.FlatAppearance.BorderSize = 0
+
+        panelBotones.Controls.AddRange({btnNuevo, btnGuardar, btnEditar, btnEliminar})
+        leftPanel.Controls.Add(panelBotones)
+
+        '*******************************************
+        '*** PANEL DE SINIESTROS: TABLA Y BÚSQUEDA ***
+        '*******************************************
+
+        Dim rightPanel As New Panel With {
+        .Dock = DockStyle.Fill,
+        .Padding = New Padding(20),
+        .BackColor = Color.WhiteSmoke
+    }
+
+        ' Filtros de búsqueda
+        Dim panelFiltros As New Panel With {
+        .Dock = DockStyle.Top,
+        .Height = 110,
+        .BackColor = Color.Transparent
+    }
+
+        Dim lblBuscarCliente As New Label With {
+        .Text = "🔍 Buscar por Cliente (RUT):",
+        .Location = New Point(0, 5),
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .AutoSize = True
+    }
+
+        txtBuscarCliente = New TextBox With {
+        .Location = New Point(0, 25),
+        .Width = 300,
+        .Font = New Font("Segoe UI", 10)
+    }
+
+        ' Botón para buscar por RUT de cliente
+        Dim btnBuscarRut As New Button With {
+        .Text = "Buscar",
+        .Location = New Point(310, 25),
+        .Width = 90,
+        .Height = 26,
+        .FlatStyle = FlatStyle.Flat,
+        .BackColor = Color.FromArgb(0, 122, 204),
+        .ForeColor = Color.White,
+        .Cursor = Cursors.Hand,
+        .Font = New Font("Segoe UI", 9, FontStyle.Regular)
+    }
+        btnBuscarRut.FlatAppearance.BorderSize = 0
+
+        Dim lblEstadoLabel As New Label With {
+        .Text = "Estado Siniestro:",
+        .Location = New Point(410, 5),
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .AutoSize = True
+    }
+
+        cboEstado = New ComboBox With {
+        .Location = New Point(410, 25),
+        .Width = 180,
+        .Font = New Font("Segoe UI", 10),
+        .DropDownStyle = ComboBoxStyle.DropDownList
+    }
+        cboEstado.Items.AddRange({"Todos", "Abierto", "En Análisis", "Cerrado", "Rechazado"})
+        cboEstado.SelectedIndex = 0
+
+        panelFiltros.Controls.AddRange({lblBuscarCliente, txtBuscarCliente, btnBuscarRut, lblEstadoLabel, cboEstado})
+        rightPanel.Controls.Add(panelFiltros)
+
+        ' DataGridView
+        dgvSiniestros = New DataGridView With {
+            .Dock = DockStyle.Top,
+            .Height = 350,
+            .BackgroundColor = Color.White,
+            .BorderStyle = BorderStyle.None,
+            .AllowUserToAddRows = False,
+            .AllowUserToDeleteRows = False,
+            .ReadOnly = True,
+            .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            .MultiSelect = False,
+            .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            .RowHeadersVisible = False,
+            .EnableHeadersVisualStyles = False
+        }
+
+        ' Estilos
+        dgvSiniestros.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
+        dgvSiniestros.ColumnHeadersDefaultCellStyle.ForeColor = Color.White
+        dgvSiniestros.ColumnHeadersDefaultCellStyle.Font = New Font("Segoe UI", 10, FontStyle.Bold)
+        dgvSiniestros.ColumnHeadersHeight = 40
+
+        dgvSiniestros.DefaultCellStyle.Font = New Font("Segoe UI", 9)
+        dgvSiniestros.DefaultCellStyle.SelectionBackColor = Color.FromArgb(100, 180, 255)
+        dgvSiniestros.RowTemplate.Height = 35
+        dgvSiniestros.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245)
+
+        rightPanel.Controls.Add(dgvSiniestros)
+
+        ' Agregar paneles
+        mainContainer.Controls.Add(rightPanel)
+        mainContainer.Controls.Add(leftPanel)
+
+        panelPrincipal.Controls.Add(mainContainer)
+        panelPrincipal.Controls.Add(header)
+        PanelContenido.Controls.Add(panelPrincipal)
+
+        ' *** EVENTOS Y FUNCIONES ***
+        ' Cargar siniestros
+        Dim CargarSiniestros As Action = Sub()
+                                             Try
+                                                 Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                 If conn Is Nothing Then Return
+
+                                                 Dim query As String = "SELECT SiniestroID, Detalle, Estado_Siniestro, Fecha_Siniestro, RutCompania, Rut, Estado_Seguro FROM siniestro ORDER BY Fecha_Siniestro DESC"
+                                                 Dim da As New MySqlDataAdapter(query, conn)
+                                                 dtSiniestros = New DataTable()
+                                                 da.Fill(dtSiniestros)
+
+                                                 dgvSiniestros.DataSource = dtSiniestros
+
+                                                 If dgvSiniestros.Columns.Count > 0 Then
+                                                     dgvSiniestros.Columns("SiniestroID").HeaderText = "ID"
+                                                     dgvSiniestros.Columns("SiniestroID").Width = 60
+                                                     dgvSiniestros.Columns("Detalle").HeaderText = "Detalle"
+                                                     dgvSiniestros.Columns("Detalle").Width = 200
+                                                     dgvSiniestros.Columns("Estado_Siniestro").HeaderText = "Estado"
+                                                     dgvSiniestros.Columns("Estado_Siniestro").Width = 100
+                                                     dgvSiniestros.Columns("Fecha_Siniestro").HeaderText = "Fecha"
+                                                     dgvSiniestros.Columns("Fecha_Siniestro").Width = 100
+                                                     dgvSiniestros.Columns("Fecha_Siniestro").DefaultCellStyle.Format = "yyyy-MM-dd"
+                                                     dgvSiniestros.Columns("RutCompania").HeaderText = "RUT Compañía"
+                                                     dgvSiniestros.Columns("RutCompania").Width = 120
+                                                     dgvSiniestros.Columns("Rut").HeaderText = "RUT Cliente"
+                                                     dgvSiniestros.Columns("Rut").Width = 120
+                                                     dgvSiniestros.Columns("Estado_Seguro").HeaderText = "Estado "
+                                                     dgvSiniestros.Columns("Estado_Seguro").Width = 120
+                                                 End If
+
+                                                 ' Configurar comportamiento de edición para las celdas de la tabla
+                                                 For Each col In dgvSiniestros.Columns
+                                                     col.ReadOnly = True
+                                                 Next
+
+                                             Catch ex As Exception
+                                                 MessageBox.Show("Error al cargar: " & ex.Message)
+                                             Finally
+                                                 ModuloConexion.Desconectar()
+                                             End Try
+                                         End Sub
+
+        ' Selección
+        AddHandler dgvSiniestros.SelectionChanged, Sub()
+                                                       If dgvSiniestros.SelectedRows.Count > 0 Then
+                                                           Dim row As DataGridViewRow = dgvSiniestros.SelectedRows(0)
+                                                           idSiniestroSeleccionado = Convert.ToInt32(row.Cells("SiniestroID").Value)
+                                                           txtId.Text = row.Cells("SiniestroID").Value.ToString()
+                                                           txtDetalle.Text = row.Cells("Detalle").Value.ToString()
+                                                           dtpFecha.Value = Convert.ToDateTime(row.Cells("Fecha_Siniestro").Value)
+                                                           txtCompania.Text = row.Cells("RutCompania").Value.ToString()
+                                                           txtRutCliente.Text = row.Cells("Rut").Value.ToString()
+                                                           txtSeguro.Text = row.Cells("Estado_Seguro").Value.ToString()
+                                                           btnEditar.Enabled = True
+                                                           btnEliminar.Enabled = True
+                                                           btnGuardar.Enabled = False
+                                                           txtDetalle.Enabled = False
+                                                           dtpFecha.Enabled = False
+                                                           txtCompania.Enabled = False
+                                                           txtRutCliente.Enabled = False
+                                                           txtSeguro.Enabled = False
+                                                       End If
+                                                   End Sub
+
+        ' Evento: Búsqueda
+        AddHandler txtBuscarCliente.TextChanged, Sub()
+                                                     AplicarFiltrosSiniestro(dtSiniestros, txtBuscarCliente.Text.Trim(), cboEstado.SelectedItem.ToString())
+                                                 End Sub
+
+        AddHandler cboEstado.SelectedIndexChanged, Sub()
+                                                       AplicarFiltrosSiniestro(dtSiniestros, txtBuscarCliente.Text.Trim(), cboEstado.SelectedItem.ToString())
+                                                   End Sub
+
+        ' Botón Nuevo
+        AddHandler btnNuevo.Click, Sub()
+                                       LimpiarFormularioSiniestro(txtId, txtDetalle, dtpFecha, txtCompania, txtRutCliente, txtSeguro)
+                                       txtDetalle.Enabled = True
+                                       dtpFecha.Enabled = True
+                                       txtCompania.Enabled = True
+                                       txtRutCliente.Enabled = True
+                                       txtSeguro.Enabled = True
+                                       btnGuardar.Enabled = True
+                                       btnEditar.Enabled = False
+                                       btnEliminar.Enabled = False
+                                       txtDetalle.Focus()
+                                   End Sub
+
+        ' Botón Guardar
+        AddHandler btnGuardar.Click, Sub()
+                                         If ValidarCamposSiniestro(txtDetalle, txtCompania, txtRutCliente, txtSeguro) Then
+                                             GuardarSiniestroEnBD(modoEdicion, idSiniestroSeleccionado, txtDetalle, dtpFecha, txtCompania, txtRutCliente, txtSeguro, CargarSiniestros)
+                                         End If
+                                     End Sub
+
+        ' Botón Editar
+        AddHandler btnEditar.Click, Sub()
+                                        modoEdicion = True
+                                        txtDetalle.Enabled = True
+                                        dtpFecha.Enabled = True
+                                        txtCompania.Enabled = True
+                                        txtRutCliente.Enabled = True
+                                        txtSeguro.Enabled = True
+                                        btnGuardar.Enabled = True
+                                        btnEditar.Enabled = False
+                                        btnEliminar.Enabled = False
+                                    End Sub
+
+        ' Botón Eliminar
+        AddHandler btnEliminar.Click, Sub()
+                                          If MessageBox.Show("¿Confirmar eliminación?", "Eliminar", MessageBoxButtons.YesNo) = DialogResult.Yes Then
+                                              EliminarSiniestroEnBD(idSiniestroSeleccionado, CargarSiniestros)
+                                          End If
+                                      End Sub
+
+        ' Cargar datos iniciales
+        CargarSiniestros()
+    End Sub
+
+    '************* FIN PANEL DE SINIESTROS ****************
 
 
     ' *******************************
@@ -1354,13 +1744,13 @@ Partial Class FormMenuPrincipal
                                            ' Confirmar venta
                                            Dim total As Decimal = Decimal.Parse(txtTotal.Text.Replace("$", ""))
                                            Dim resultado As DialogResult = MessageBox.Show(
-                                               "¿Confirmar la venta?" & vbCrLf & vbCrLf &
-                                               "Repuesto: " & txtNombre.Text & vbCrLf &
-                                               "Cantidad: " & cantidadVenta.ToString() & vbCrLf &
-                                               "Total: $" & total.ToString("N2"),
-                                               "Confirmar Venta",
-                                               MessageBoxButtons.YesNo,
-                                               MessageBoxIcon.Question)
+                                       "¿Confirmar la venta?" & vbCrLf & vbCrLf &
+                                       "Repuesto: " & txtNombre.Text & vbCrLf &
+                                       "Cantidad: " & cantidadVenta.ToString() & vbCrLf &
+                                       "Total: $" & total.ToString("N2"),
+                                       "Confirmar Venta",
+                                       MessageBoxButtons.YesNo,
+                                       MessageBoxIcon.Question)
 
                                            If resultado = DialogResult.No Then Return
 
@@ -1377,12 +1767,22 @@ Partial Class FormMenuPrincipal
                                                    cmd.ExecuteNonQuery()
                                                End Using
 
+                                               ' Guardar en historial de ventas (ventasrepuestos)
+                                               Dim queryHistorial As String = "INSERT INTO ventasrepuestos (NombreRepuesto, CantidadVendida, Cliente, FechaVenta, Total) VALUES (@nombre, @cantidad, @cliente, NOW(), @total)"
+                                               Using cmd As New MySqlCommand(queryHistorial, conn)
+                                                   cmd.Parameters.AddWithValue("@nombre", txtNombre.Text)
+                                                   cmd.Parameters.AddWithValue("@cantidad", cantidadVenta)
+                                                   cmd.Parameters.AddWithValue("@cliente", "Cliente General")
+                                                   cmd.Parameters.AddWithValue("@total", CInt(total))
+                                                   cmd.ExecuteNonQuery()
+                                               End Using
+
                                                MessageBox.Show("¡Venta realizada exitosamente!" & vbCrLf & vbCrLf &
-                                                             "Total: $" & total.ToString("N2") & vbCrLf &
-                                                             "Fecha: " & DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
-                                                             "Venta Confirmada",
-                                                             MessageBoxButtons.OK,
-                                                             MessageBoxIcon.Information)
+                                                     "Total: $" & total.ToString("N2") & vbCrLf &
+                                                     "Fecha: " & DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                                                     "Venta Confirmada",
+                                                     MessageBoxButtons.OK,
+                                                     MessageBoxIcon.Information)
 
                                                ' Limpiar formulario
                                                cboRepuesto.SelectedIndex = -1
@@ -1411,6 +1811,215 @@ Partial Class FormMenuPrincipal
 
     '************* FIN PANEL DE VENTAS ****************
 
+    ' *******************************
+    ' *** PANEL HISTORIAL VENTAS ***
+    ' *******************************
+
+    Private Sub MostrarPanelHistorialVentas()
+        Dim dt As New DataTable()
+
+        ' Panel principal
+        Dim panelPrincipal As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke}
+
+        ' Header
+        Dim header As New Panel With {.Dock = DockStyle.Top, .Height = 60, .BackColor = Color.Transparent}
+        Dim title As New Label With {
+        .Text = "📋 Historial de ventas",
+        .Font = New Font("Segoe UI", 18, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True,
+        .Location = New Point(20, 15)
+    }
+        header.Controls.Add(title)
+
+        ' Contenedor principal
+        Dim mainContainer As New Panel With {.Dock = DockStyle.Fill, .BackColor = Color.WhiteSmoke, .Padding = New Padding(20)}
+
+        ' Panel de búsqueda
+        Dim searchPanel As New Panel With {.Dock = DockStyle.Top, .Height = 100, .BackColor = Color.White, .Padding = New Padding(20)}
+
+        Dim lblBuscar As New Label With {
+        .Text = "ID/Descripción:",
+        .Location = New Point(20, 15),
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .ForeColor = Color.FromArgb(40, 50, 60),
+        .AutoSize = True
+    }
+
+        Dim txtBuscar As New TextBox With {
+        .Location = New Point(20, 40),
+        .Width = 350,
+        .Font = New Font("Segoe UI", 11),
+        .Name = "txtBuscarHistorial"
+    }
+
+        Dim btnBuscar As New Button With {
+        .Text = "🔍 Buscar",
+        .Location = New Point(385, 38),
+        .Width = 120,
+        .Height = 30,
+        .FlatStyle = FlatStyle.Flat,
+        .BackColor = Color.FromArgb(0, 122, 204),
+        .ForeColor = Color.White,
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .Cursor = Cursors.Hand
+    }
+        btnBuscar.FlatAppearance.BorderSize = 0
+
+        Dim btnVerTodas As New Button With {
+        .Text = "📊 Ver todas las ventas",
+        .Location = New Point(520, 38),
+        .Width = 180,
+        .Height = 30,
+        .FlatStyle = FlatStyle.Flat,
+        .BackColor = Color.FromArgb(40, 167, 69),
+        .ForeColor = Color.White,
+        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+        .Cursor = Cursors.Hand
+    }
+        btnVerTodas.FlatAppearance.BorderSize = 0
+
+        searchPanel.Controls.AddRange({lblBuscar, txtBuscar, btnBuscar, btnVerTodas})
+
+        ' DataGridView para el historial
+        Dim dgvHistorial As New DataGridView With {
+        .Dock = DockStyle.Fill,
+        .BackgroundColor = Color.White,
+        .BorderStyle = BorderStyle.None,
+        .AllowUserToAddRows = False,
+        .AllowUserToDeleteRows = False,
+        .ReadOnly = True,
+        .SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+        .MultiSelect = False,
+        .AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+        .RowHeadersVisible = False,
+        .EnableHeadersVisualStyles = False,
+        .Name = "dgvHistorialVentas",
+        .AllowUserToResizeRows = False
+    }
+
+        ' Estilo del header
+        dgvHistorial.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 122, 204)
+        dgvHistorial.ColumnHeadersDefaultCellStyle.ForeColor = Color.White
+        dgvHistorial.ColumnHeadersDefaultCellStyle.Font = New Font("Segoe UI", 10, FontStyle.Bold)
+        dgvHistorial.ColumnHeadersDefaultCellStyle.Padding = New Padding(5)
+        dgvHistorial.ColumnHeadersHeight = 40
+
+        ' Estilo de filas
+        dgvHistorial.DefaultCellStyle.Font = New Font("Segoe UI", 9)
+        dgvHistorial.DefaultCellStyle.SelectionBackColor = Color.FromArgb(100, 180, 255)
+        dgvHistorial.DefaultCellStyle.SelectionForeColor = Color.White
+        dgvHistorial.RowTemplate.Height = 35
+        dgvHistorial.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245)
+
+        ' Panel para tabla con margen
+        Dim tablePanel As New Panel With {.Dock = DockStyle.Fill, .Padding = New Padding(0, 10, 0, 0)}
+        tablePanel.Controls.Add(dgvHistorial)
+
+        ' Agregar controles
+        mainContainer.Controls.Add(tablePanel)
+        mainContainer.Controls.Add(searchPanel)
+
+        panelPrincipal.Controls.Add(mainContainer)
+        panelPrincipal.Controls.Add(header)
+
+        PanelContenido.Controls.Add(panelPrincipal)
+
+        ' **********************************************
+        ' *** HISTORIAL VENTAS: FUNCIONES Y EVENTOS ***
+        ' **********************************************
+
+        ' Cargar historial completo desde la BD
+        Dim CargarHistorial As Action(Of String) = Sub(filtro As String)
+                                                       Try
+                                                           Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+                                                           If conn Is Nothing Then Return
+
+                                                           Dim query As String = "SELECT VentaID, NombreRepuesto AS Descripción, CantidadVendida AS Cantidad, " &
+                                                                           "Cliente, Total, " &
+                                                                           "DATE_FORMAT(FechaVenta, '%d-%m-%Y') AS Fecha, " &
+                                                                           "DATE_FORMAT(FechaVenta, '%H:%i') AS Hora " &
+                                                                           "FROM ventasrepuestos"
+
+                                                           If Not String.IsNullOrWhiteSpace(filtro) Then
+                                                               query &= " WHERE VentaID LIKE @filtro OR NombreRepuesto LIKE @filtro"
+                                                           End If
+
+                                                           query &= " ORDER BY FechaVenta DESC"
+
+                                                           Dim da As New MySqlDataAdapter(query, conn)
+                                                           If Not String.IsNullOrWhiteSpace(filtro) Then
+                                                               da.SelectCommand.Parameters.AddWithValue("@filtro", "%" & filtro & "%")
+                                                           End If
+
+                                                           dt = New DataTable()
+                                                           da.Fill(dt)
+
+                                                           dgvHistorial.DataSource = dt
+
+                                                           ' Configurar columnas
+                                                           If dgvHistorial.Columns.Count > 0 Then
+                                                               dgvHistorial.Columns("VentaID").HeaderText = "ID"
+                                                               dgvHistorial.Columns("VentaID").Width = 60
+
+                                                               dgvHistorial.Columns("Descripción").HeaderText = "Descripción"
+                                                               dgvHistorial.Columns("Descripción").Width = 250
+
+                                                               dgvHistorial.Columns("Cantidad").HeaderText = "Cantidad"
+                                                               dgvHistorial.Columns("Cantidad").Width = 100
+
+                                                               dgvHistorial.Columns("Cliente").HeaderText = "Cliente"
+                                                               dgvHistorial.Columns("Cliente").Width = 150
+
+                                                               dgvHistorial.Columns("Total").HeaderText = "Total"
+                                                               dgvHistorial.Columns("Total").Width = 120
+                                                               dgvHistorial.Columns("Total").DefaultCellStyle.Format = "N0"
+                                                               dgvHistorial.Columns("Total").DefaultCellStyle.Font = New Font("Segoe UI", 9, FontStyle.Bold)
+
+                                                               dgvHistorial.Columns("Fecha").HeaderText = "Fecha"
+                                                               dgvHistorial.Columns("Fecha").Width = 100
+
+                                                               dgvHistorial.Columns("Hora").HeaderText = "Hora"
+                                                               dgvHistorial.Columns("Hora").Width = 80
+                                                           End If
+
+                                                       Catch ex As Exception
+                                                           MessageBox.Show("Error al cargar historial: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                                                       Finally
+                                                           ModuloConexion.Desconectar()
+                                                       End Try
+                                                   End Sub
+
+        ' Evento: Botón Buscar
+        AddHandler btnBuscar.Click, Sub()
+                                        Dim filtro As String = txtBuscar.Text.Trim()
+                                        If String.IsNullOrWhiteSpace(filtro) Then
+                                            MessageBox.Show("Por favor, ingrese un ID o descripción para buscar.", "Búsqueda", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                                            txtBuscar.Focus()
+                                            Return
+                                        End If
+                                        CargarHistorial(filtro)
+                                    End Sub
+
+        ' Evento: Botón Ver Todas
+        AddHandler btnVerTodas.Click, Sub()
+                                          txtBuscar.Clear()
+                                          CargarHistorial("")
+                                      End Sub
+
+        ' Evento: Búsqueda con Enter
+        AddHandler txtBuscar.KeyPress, Sub(sender, e)
+                                           If e.KeyChar = ChrW(Keys.Enter) Then
+                                               e.Handled = True
+                                               btnBuscar.PerformClick()
+                                           End If
+                                       End Sub
+
+        ' Cargar todas las ventas al inicio
+        CargarHistorial("")
+    End Sub
+
+    '************* FIN PANEL HISTORIAL DE VENTAS ****************
 
     ' *******************************
     ' ****  PANEL USUARIOS  *********
@@ -1541,59 +2150,59 @@ Partial Class FormMenuPrincipal
         .BackColor = Color.Transparent
     }
 
-        Dim btnNuevo As New Button With {
-        .Text = "➕ Nuevo",
-        .Width = 160,
-        .Height = 38,
-        .Location = New Point(0, 0),
-        .FlatStyle = FlatStyle.Flat,
-        .BackColor = Color.FromArgb(0, 122, 204),
-        .ForeColor = Color.White,
-        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
-        .Cursor = Cursors.Hand
-    }
+        btnNuevo = New Button With {
+            .Text = "➕ Nuevo",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(0, 0),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(0, 122, 204),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Cursor = Cursors.Hand
+        }
         btnNuevo.FlatAppearance.BorderSize = 0
 
-        Dim btnGuardar As New Button With {
-        .Text = "💾 Guardar",
-        .Width = 160,
-        .Height = 38,
-        .Location = New Point(180, 0),
-        .FlatStyle = FlatStyle.Flat,
-        .BackColor = Color.FromArgb(40, 167, 69),
-        .ForeColor = Color.White,
-        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
-        .Enabled = False,
-        .Cursor = Cursors.Hand
-    }
+        btnGuardar = New Button With {
+            .Text = "💾 Guardar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(180, 0),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(40, 167, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
         btnGuardar.FlatAppearance.BorderSize = 0
 
-        Dim btnEditar As New Button With {
-        .Text = "✏️ Editar",
-        .Width = 160,
-        .Height = 38,
-        .Location = New Point(0, 48),
-        .FlatStyle = FlatStyle.Flat,
-        .BackColor = Color.FromArgb(255, 193, 7),
-        .ForeColor = Color.White,
-        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
-        .Enabled = False,
-        .Cursor = Cursors.Hand
-    }
+        btnEditar = New Button With {
+            .Text = "✏️ Editar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(0, 48),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(255, 193, 7),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
         btnEditar.FlatAppearance.BorderSize = 0
 
-        Dim btnEliminar As New Button With {
-        .Text = "🗑️ Eliminar",
-        .Width = 160,
-        .Height = 38,
-        .Location = New Point(180, 48),
-        .FlatStyle = FlatStyle.Flat,
-        .BackColor = Color.FromArgb(220, 53, 69),
-        .ForeColor = Color.White,
-        .Font = New Font("Segoe UI", 10, FontStyle.Bold),
-        .Enabled = False,
-        .Cursor = Cursors.Hand
-    }
+        btnEliminar = New Button With {
+            .Text = "🗑️ Eliminar",
+            .Width = 160,
+            .Height = 38,
+            .Location = New Point(180, 48),
+            .FlatStyle = FlatStyle.Flat,
+            .BackColor = Color.FromArgb(220, 53, 69),
+            .ForeColor = Color.White,
+            .Font = New Font("Segoe UI", 10, FontStyle.Bold),
+            .Enabled = False,
+            .Cursor = Cursors.Hand
+        }
         btnEliminar.FlatAppearance.BorderSize = 0
 
         panelBotones.Controls.AddRange({btnNuevo, btnGuardar, btnEditar, btnEliminar})
@@ -1624,11 +2233,11 @@ Partial Class FormMenuPrincipal
     }
 
         Dim txtBuscar As New TextBox With {
-        .Location = New Point(0, 30),
-        .Width = 350,
-        .Font = New Font("Segoe UI", 11),
-        .Name = "txtBuscarUsuario"
-    }
+            .Location = New Point(0, 25),
+            .Width = 350,
+            .Font = New Font("Segoe UI", 11),
+            .Name = "txtBuscarUsuario"
+        }
 
         panelBusqueda.Controls.AddRange({lblBuscar, txtBuscar})
         rightPanel.Controls.Add(panelBusqueda)
@@ -1959,8 +2568,7 @@ Partial Class FormMenuPrincipal
                                               If String.IsNullOrEmpty(filtro) Then
                                                   dt.DefaultView.RowFilter = ""
                                               Else
-                                                  filtro = filtro.Replace("'", "''")
-                                                  dt.DefaultView.RowFilter = String.Format("Rut LIKE '%{0}%' OR Correo LIKE '%{0}%'", filtro)
+                                                  dt.DefaultView.RowFilter = String.Format("Rut LIKE '%{0}%' OR Correo LIKE '%{0}%'", filtro.Replace("'", "''"))
                                               End If
                                           End Sub
 
@@ -2074,7 +2682,6 @@ Partial Class FormMenuPrincipal
         ' Agregar elementos al leftPanel en orden para correcto dock: primero tarjetas, luego espacio, luego botones
         leftPanel.Controls.Add(statsFlow)
         leftPanel.Controls.Add(spacer)
-        ' buttonsPanel is Dock.Bottom so add it last
         leftPanel.Controls.Add(buttonsPanel)
 
         ' Right: actividad reciente
@@ -2091,7 +2698,7 @@ Partial Class FormMenuPrincipal
         Dim createActivityItem As Func(Of String, String, Panel) =
             Function(icon, text)
 
-                Dim it As New Panel With {.Width = rightPanelField.Width - 24, .Height = 60, .BackColor = Color.White, .BorderStyle = BorderStyle.None, .Margin = New Padding(0, 6, 0, 6)}
+                Dim it As New Panel With {.Width = activityFlowPanel.Width - 24, .Height = 60, .BackColor = Color.White, .BorderStyle = BorderStyle.None, .Margin = New Padding(0, 6, 0, 6)}
                 Dim pic As New Label With {.Text = icon, .Font = New Font("Segoe UI Emoji", 12, FontStyle.Regular), .AutoSize = False, .Size = New Size(28, 28), .Location = New Point(6, 16), .ForeColor = Color.Gray}
                 Dim lbl As New Label With {.Text = text, .Font = New Font("Segoe UI", 9, FontStyle.Regular), .ForeColor = Color.FromArgb(70, 70, 70), .Location = New Point(44, 12), .AutoSize = False, .Size = New Size(it.Width - 50, 36)}
                 it.Controls.Add(pic)
@@ -2259,6 +2866,134 @@ Partial Class FormMenuPrincipal
                 Next
             Next
         Catch
+        End Try
+    End Sub
+
+    Private Sub PanelContenido_Paint(sender As Object, e As PaintEventArgs) Handles PanelContenido.Paint
+
+    End Sub
+
+    ' ==============================
+    ' FUNCIONES AUXILIARES PARA SINIESTROS
+    ' ==============================
+    Private Sub AplicarFiltrosSiniestro(dt As DataTable, filtroCliente As String, estado As String)
+        If dt Is Nothing OrElse dt.Rows.Count = 0 Then Return
+        Try
+            Dim condiciones As New List(Of String)()
+            If Not String.IsNullOrWhiteSpace(filtroCliente) Then
+                condiciones.Add(String.Format("Rut LIKE '%{0}%'", filtroCliente.Replace("'", "''")))
+            End If
+            If Not String.IsNullOrWhiteSpace(estado) AndAlso estado <> "Todos" Then
+                condiciones.Add(String.Format("Estado_Siniestro = '{0}'", estado.Replace("'", "''")))
+            End If
+            dt.DefaultView.RowFilter = If(condiciones.Count > 0, String.Join(" AND ", condiciones), "")
+        Catch
+        End Try
+    End Sub
+
+    Private Sub LimpiarFormularioSiniestro(txtId As TextBox, txtDetalle As TextBox, dtpFecha As DateTimePicker, txtCompania As TextBox, txtRutCliente As TextBox, txtSeguro As TextBox)
+        Try
+            If txtId IsNot Nothing Then txtId.Text = "Auto-generado"
+            If txtDetalle IsNot Nothing Then txtDetalle.Clear()
+            If dtpFecha IsNot Nothing Then dtpFecha.Value = DateTime.Now
+            If txtCompania IsNot Nothing Then txtCompania.Clear()
+            If txtRutCliente IsNot Nothing Then txtRutCliente.Clear()
+            If txtSeguro IsNot Nothing Then txtSeguro.Clear()
+        Catch
+        End Try
+    End Sub
+
+    Private Function ValidarCamposSiniestro(txtDetalle As TextBox, txtCompania As TextBox, txtRutCliente As TextBox, txtSeguro As TextBox) As Boolean
+        If txtDetalle Is Nothing OrElse String.IsNullOrWhiteSpace(txtDetalle.Text) Then
+            MessageBox.Show("El detalle es obligatorio.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            If txtDetalle IsNot Nothing Then txtDetalle.Focus()
+            Return False
+        End If
+        If txtCompania Is Nothing OrElse String.IsNullOrWhiteSpace(txtCompania.Text) Then
+            MessageBox.Show("La compañía es obligatoria.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            If txtCompania IsNot Nothing Then txtCompania.Focus()
+            Return False
+        End If
+        If txtRutCliente Is Nothing OrElse String.IsNullOrWhiteSpace(txtRutCliente.Text) Then
+            MessageBox.Show("El RUT del cliente es obligatorio.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            If txtRutCliente IsNot Nothing Then txtRutCliente.Focus()
+            Return False
+        End If
+        If txtSeguro Is Nothing OrElse String.IsNullOrWhiteSpace(txtSeguro.Text) Then
+            MessageBox.Show("El seguro es obligatorio.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            If txtSeguro IsNot Nothing Then txtSeguro.Focus()
+            Return False
+        End If
+        Return True
+    End Function
+
+    Private Sub GuardarSiniestroEnBD(modoEdicion As Boolean, idSiniestro As Integer, txtDetalle As TextBox, dtpFecha As DateTimePicker, txtCompania As TextBox, txtRutCliente As TextBox, txtSeguro As TextBox, CargarSiniestros As Action)
+        Try
+            Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+            If conn Is Nothing Then Return
+
+            ' Validar que el RUT exista en la tabla clientes para evitar fallo de FK
+            Dim rutVal As String = If(txtRutCliente IsNot Nothing, txtRutCliente.Text.Trim(), String.Empty)
+            If Not String.IsNullOrEmpty(rutVal) Then
+                Try
+                    Using cmdCheck As New MySqlCommand("SELECT COUNT(*) FROM clientes WHERE Rut = @rut", conn)
+                        cmdCheck.Parameters.AddWithValue("@rut", rutVal)
+                        Dim countClientes As Integer = Convert.ToInt32(cmdCheck.ExecuteScalar())
+                        If countClientes = 0 Then
+                            MessageBox.Show("El RUT del cliente ('" & rutVal & "') no existe en la tabla 'clientes'. Por favor cree el cliente antes de guardar el siniestro.", "Error: Cliente no encontrado", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                            Return
+                        End If
+                    End Using
+                Catch ex As Exception
+                    ' Si falla la verificación, abortar para evitar insertar datos que rompan la FK
+                    MessageBox.Show("No se pudo verificar el RUT en la tabla 'clientes': " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Return
+                End Try
+            End If
+
+            Dim query As String = String.Empty
+            If modoEdicion Then
+                query = "UPDATE siniestro SET Detalle=@detalle, Fecha_Siniestro=@fecha, RutCompania=@compania, Rut=@rut, Estado_Seguro=@seguro WHERE SiniestroID=@id"
+            Else
+                query = "INSERT INTO siniestro (Detalle, Fecha_Siniestro, RutCompania, Rut, Estado_Seguro, Estado_Siniestro) VALUES (@detalle, @fecha, @compania, @rut, @seguro, 'Abierto')"
+            End If
+
+            Using cmd As New MySqlCommand(query, conn)
+                cmd.Parameters.AddWithValue("@detalle", If(txtDetalle IsNot Nothing, txtDetalle.Text.Trim(), String.Empty))
+                cmd.Parameters.AddWithValue("@fecha", If(dtpFecha IsNot Nothing, dtpFecha.Value.Date, DateTime.Now.Date))
+                cmd.Parameters.AddWithValue("@compania", If(txtCompania IsNot Nothing, txtCompania.Text.Trim(), String.Empty))
+                cmd.Parameters.AddWithValue("@rut", rutVal)
+                cmd.Parameters.AddWithValue("@seguro", If(txtSeguro IsNot Nothing, txtSeguro.Text.Trim(), String.Empty))
+                If modoEdicion Then cmd.Parameters.AddWithValue("@id", idSiniestro)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            MessageBox.Show(If(modoEdicion, "Siniestro actualizado correctamente.", "Siniestro agregado correctamente."), "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            If CargarSiniestros IsNot Nothing Then CargarSiniestros()
+
+        Catch ex As Exception
+            MessageBox.Show("Error al guardar siniestro: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        Finally
+            ModuloConexion.Desconectar()
+        End Try
+    End Sub
+
+    Private Sub EliminarSiniestroEnBD(idSiniestro As Integer, CargarSiniestros As Action)
+        Try
+            Dim conn As MySqlConnection = ModuloConexion.GetConexion()
+            If conn Is Nothing Then Return
+
+            Using cmd As New MySqlCommand("DELETE FROM siniestro WHERE SiniestroID=@id", conn)
+                cmd.Parameters.AddWithValue("@id", idSiniestro)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            MessageBox.Show("Siniestro eliminado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            If CargarSiniestros IsNot Nothing Then CargarSiniestros()
+        Catch ex As Exception
+            MessageBox.Show("Error al eliminar siniestro: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        Finally
+            ModuloConexion.Desconectar()
         End Try
     End Sub
 
